@@ -1,4 +1,3 @@
-
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,9 +37,7 @@ const gam3eyat = [
     name: "Friends Group",
     totalAmount: 24000,
     membersCount: 8,
-    monthly
-
-Contribution: 3000,
+    monthlyContribution: 3000,
     startDate: "2023-08-01",
     endDate: "2024-03-31",
     myTurn: 4,
