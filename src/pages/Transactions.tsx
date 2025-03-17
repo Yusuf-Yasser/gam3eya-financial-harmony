@@ -34,6 +34,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Transaction } from "@/data/dummyData";
 
 // Separate categories for expense and income
 const expenseCategoryOptions = [
@@ -52,6 +53,7 @@ const Transactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [transactions, setTransactions] = useState(initialTransactions);
   const [open, setOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     description: "",
     amount: 0,
@@ -106,28 +108,52 @@ const Transactions = () => {
       return;
     }
 
-    // Generate a string ID with 't' prefix and a number
-    const maxId = transactions.reduce((max, t) => {
-      const idNum = parseInt(t.id.replace('t', ''));
-      return idNum > max ? idNum : max;
-    }, 0);
-    
-    const newId = `t${maxId + 1}`;
-    
-    const createdTransaction = {
-      id: newId,
-      description: newTransaction.description,
-      amount: newTransaction.amount,
-      date: newTransaction.date,
-      category: newTransaction.category,
-      type: newTransaction.type as 'income' | 'expense',
-      walletId: newTransaction.walletId,
-      receiptUrl: newTransaction.receiptUrl || undefined,
-    };
+    if (isEditing) {
+      // Update existing transaction
+      const updatedTransactions = transactions.map(t => 
+        t.id === newTransaction.id ? 
+          {...newTransaction, type: newTransaction.type as 'income' | 'expense'} : 
+          t
+      );
+      setTransactions(updatedTransactions);
+      toast({
+        title: t('success'),
+        description: t('transaction_updated_successfully'),
+      });
+    } else {
+      // Generate a string ID with 't' prefix and a number
+      const maxId = transactions.reduce((max, t) => {
+        const idNum = parseInt(t.id.replace('t', ''));
+        return idNum > max ? idNum : max;
+      }, 0);
+      
+      const newId = `t${maxId + 1}`;
+      
+      const createdTransaction = {
+        id: newId,
+        description: newTransaction.description,
+        amount: newTransaction.amount,
+        date: newTransaction.date,
+        category: newTransaction.category,
+        type: newTransaction.type as 'income' | 'expense',
+        walletId: newTransaction.walletId,
+        receiptUrl: newTransaction.receiptUrl || undefined,
+      };
 
-    setTransactions([createdTransaction, ...transactions]);
+      setTransactions([createdTransaction, ...transactions]);
+      toast({
+        title: t('success'),
+        description: t('transaction_added_successfully'),
+      });
+    }
+
     setOpen(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
     setNewTransaction({
+      id: "",
       description: "",
       amount: 0,
       date: new Date().toISOString().split('T')[0],
@@ -136,11 +162,16 @@ const Transactions = () => {
       walletId: wallets.length > 0 ? wallets[0].id : "",
       receiptUrl: ""
     });
+    setIsEditing(false);
+  };
 
-    toast({
-      title: t('success'),
-      description: t('transaction_added_successfully'),
+  const handleEditTransaction = (transaction: Transaction) => {
+    setIsEditing(true);
+    setNewTransaction({
+      ...transaction,
+      id: transaction.id,
     });
+    setOpen(true);
   };
 
   // Filter transactions based on search term
@@ -170,7 +201,10 @@ const Transactions = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('transactions')}</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(open) => {
+          setOpen(open);
+          if (!open) resetForm();
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> {t('add_transaction')}
@@ -178,9 +212,11 @@ const Transactions = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t('add_new_transaction')}</DialogTitle>
+              <DialogTitle>
+                {isEditing ? t('edit_transaction') : t('add_new_transaction')}
+              </DialogTitle>
               <DialogDescription>
-                {t('enter_transaction_details')}
+                {isEditing ? t('edit_transaction_details') : t('enter_transaction_details')}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -306,7 +342,9 @@ const Transactions = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleAddTransaction}>{t('add_transaction')}</Button>
+              <Button onClick={handleAddTransaction}>
+                {isEditing ? t('update_transaction') : t('add_transaction')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -336,7 +374,10 @@ const Transactions = () => {
         <CardContent>
           {currentTransactions.length > 0 ? (
             <>
-              <TransactionList transactions={currentTransactions} />
+              <TransactionList 
+                transactions={currentTransactions} 
+                onEdit={handleEditTransaction}
+              />
               <Pagination className="mt-4">
                 <PaginationContent>
                   <PaginationItem>
