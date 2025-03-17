@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TransactionList } from "@/components/dashboard/TransactionList";
-import { transactions as initialTransactions } from "@/data/dummyData";
+import { transactions as initialTransactions, wallets } from "@/data/dummyData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Filter, Plus } from "lucide-react";
@@ -53,6 +53,7 @@ const Transactions = () => {
     date: new Date().toISOString().split('T')[0],
     category: "",
     type: "expense",
+    walletId: wallets.length > 0 ? wallets[0].id : ""
   });
   
   const itemsPerPage = 10;
@@ -83,7 +84,13 @@ const Transactions = () => {
       return;
     }
 
-    const newId = Math.max(...transactions.map(t => t.id)) + 1;
+    // Generate a string ID with 't' prefix and a number
+    const maxId = transactions.reduce((max, t) => {
+      const idNum = parseInt(t.id.replace('t', ''));
+      return idNum > max ? idNum : max;
+    }, 0);
+    
+    const newId = `t${maxId + 1}`;
     
     const createdTransaction = {
       id: newId,
@@ -91,7 +98,8 @@ const Transactions = () => {
       amount: newTransaction.amount,
       date: newTransaction.date,
       category: newTransaction.category,
-      type: newTransaction.type,
+      type: newTransaction.type as 'income' | 'expense',
+      walletId: newTransaction.walletId,
     };
 
     setTransactions([createdTransaction, ...transactions]);
@@ -102,6 +110,7 @@ const Transactions = () => {
       date: new Date().toISOString().split('T')[0],
       category: "",
       type: "expense",
+      walletId: wallets.length > 0 ? wallets[0].id : ""
     });
 
     toast({
@@ -208,6 +217,25 @@ const Transactions = () => {
                     {categoryOptions.map((category) => (
                       <SelectItem key={category} value={category}>
                         {t(category)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="wallet">{t('wallet')}</Label>
+                <Select 
+                  onValueChange={(value) => handleSelectChange("walletId", value)}
+                  value={newTransaction.walletId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('select_wallet')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets.map((wallet) => (
+                      <SelectItem key={wallet.id} value={wallet.id}>
+                        {wallet.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

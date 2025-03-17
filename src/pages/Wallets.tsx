@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { wallets as initialWallets } from "@/data/dummyData";
+import { wallets as initialWallets, Wallet } from "@/data/dummyData";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, CreditCard, Wallet as WalletIcon, Banknote, PiggyBank, Users } from "lucide-react";
@@ -33,7 +33,7 @@ const Wallets = () => {
     color: "#83C5BE",
   });
 
-  const walletTypes = ["cash", "bank", "savings", "gam3eya"];
+  const walletTypes = ["cash", "bank", "savings", "gam3eya", "custom"];
   const colorOptions = ["#83C5BE", "#E29578", "#006D77", "#FFDDD2", "#4ECDC4", "#FF6B6B"];
   
   const getWalletIcon = (type: string) => {
@@ -77,12 +77,18 @@ const Wallets = () => {
       return;
     }
 
-    const newId = Math.max(...walletList.map(w => w.id)) + 1;
+    // Generate a string ID with 'w' prefix followed by a number
+    const maxIdNum = walletList.reduce((max, w) => {
+      const idNum = parseInt(w.id.replace('w', ''));
+      return idNum > max ? idNum : max;
+    }, 0);
     
-    const createdWallet = {
+    const newId = `w${maxIdNum + 1}`;
+    
+    const createdWallet: Wallet = {
       id: newId,
       name: newWallet.name,
-      type: newWallet.type,
+      type: newWallet.type as 'cash' | 'bank' | 'savings' | 'gam3eya' | 'custom',
       balance: newWallet.balance,
       color: newWallet.color || colorOptions[Math.floor(Math.random() * colorOptions.length)],
     };
