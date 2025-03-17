@@ -7,7 +7,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Layout } from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
-import NotFound from "./pages/NotFound";
+import Transactions from "@/pages/Transactions";
+import Budgets from "@/pages/Budgets";
+import Wallets from "@/pages/Wallets";
+import Gam3eya from "@/pages/Gam3eya";
+import Reports from "@/pages/Reports";
+import Settings from "@/pages/Settings";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -26,44 +32,32 @@ const App = () => (
             } />
             <Route path="/transactions" element={
               <Layout>
-                <div className="min-h-[80vh] flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-muted-foreground">Transactions Page (Coming Soon)</h1>
-                </div>
+                <Transactions />
               </Layout>
             } />
             <Route path="/budgets" element={
               <Layout>
-                <div className="min-h-[80vh] flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-muted-foreground">Budgets Page (Coming Soon)</h1>
-                </div>
+                <Budgets />
               </Layout>
             } />
             <Route path="/wallets" element={
               <Layout>
-                <div className="min-h-[80vh] flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-muted-foreground">Wallets Page (Coming Soon)</h1>
-                </div>
+                <Wallets />
               </Layout>
             } />
             <Route path="/gam3eya" element={
               <Layout>
-                <div className="min-h-[80vh] flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-muted-foreground">Gam3eya Page (Coming Soon)</h1>
-                </div>
+                <Gam3eya />
               </Layout>
             } />
             <Route path="/reports" element={
               <Layout>
-                <div className="min-h-[80vh] flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-muted-foreground">Reports Page (Coming Soon)</h1>
-                </div>
+                <Reports />
               </Layout>
             } />
             <Route path="/settings" element={
               <Layout>
-                <div className="min-h-[80vh] flex items-center justify-center">
-                  <h1 className="text-2xl font-bold text-muted-foreground">Settings Page (Coming Soon)</h1>
-                </div>
+                <Settings />
               </Layout>
             } />
             <Route path="*" element={<NotFound />} />
