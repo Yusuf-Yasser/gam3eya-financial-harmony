@@ -5,7 +5,7 @@ import { TransactionList } from "@/components/dashboard/TransactionList";
 import { transactions as initialTransactions, wallets } from "@/data/dummyData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, Paperclip } from "lucide-react";
 import { 
   Card, 
   CardContent, 
@@ -35,9 +35,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-const categoryOptions = [
+// Separate categories for expense and income
+const expenseCategoryOptions = [
   "groceries", "transportation", "entertainment", "dining_out", "utilities", 
   "housing", "healthcare", "clothing", "education", "savings", "other"
+];
+
+const incomeCategoryOptions = [
+  "salary", "freelance", "investments", "gifts", "refunds", "side_hustle", "other"
 ];
 
 const Transactions = () => {
@@ -53,7 +58,8 @@ const Transactions = () => {
     date: new Date().toISOString().split('T')[0],
     category: "",
     type: "expense",
-    walletId: wallets.length > 0 ? wallets[0].id : ""
+    walletId: wallets.length > 0 ? wallets[0].id : "",
+    receiptUrl: ""
   });
   
   const itemsPerPage = 10;
@@ -71,6 +77,22 @@ const Transactions = () => {
       ...newTransaction,
       [name]: value,
     });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // Create a fake URL for the uploaded file (in a real app, you would upload to a server)
+      const receiptUrl = URL.createObjectURL(file);
+      setNewTransaction({
+        ...newTransaction,
+        receiptUrl
+      });
+      toast({
+        title: t('receipt_attached'),
+        description: file.name,
+      });
+    }
   };
 
   const handleAddTransaction = () => {
@@ -100,6 +122,7 @@ const Transactions = () => {
       category: newTransaction.category,
       type: newTransaction.type as 'income' | 'expense',
       walletId: newTransaction.walletId,
+      receiptUrl: newTransaction.receiptUrl || undefined,
     };
 
     setTransactions([createdTransaction, ...transactions]);
@@ -110,7 +133,8 @@ const Transactions = () => {
       date: new Date().toISOString().split('T')[0],
       category: "",
       type: "expense",
-      walletId: wallets.length > 0 ? wallets[0].id : ""
+      walletId: wallets.length > 0 ? wallets[0].id : "",
+      receiptUrl: ""
     });
 
     toast({
@@ -137,6 +161,11 @@ const Transactions = () => {
   // Change page
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
+  // Get appropriate category options based on transaction type
+  const categoryOptions = newTransaction.type === 'income' 
+    ? incomeCategoryOptions 
+    : expenseCategoryOptions;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -159,7 +188,11 @@ const Transactions = () => {
                 defaultValue="expense" 
                 className="flex justify-center space-x-4"
                 value={newTransaction.type}
-                onValueChange={(value) => handleSelectChange("type", value)}
+                onValueChange={(value) => {
+                  // Reset category when changing transaction type
+                  handleSelectChange("type", value);
+                  handleSelectChange("category", "");
+                }}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="expense" id="expense" />
@@ -240,6 +273,36 @@ const Transactions = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="receipt">{t('receipt')}</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="receipt"
+                    name="receipt"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('receipt')?.click()}
+                    className="w-full"
+                  >
+                    <Paperclip className="mr-2 h-4 w-4" />
+                    {newTransaction.receiptUrl ? t('receipt_attached') : t('attach_receipt')}
+                  </Button>
+                  {newTransaction.receiptUrl && (
+                    <img 
+                      src={newTransaction.receiptUrl} 
+                      alt="Receipt preview" 
+                      className="w-12 h-12 object-cover rounded border" 
+                    />
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter>
