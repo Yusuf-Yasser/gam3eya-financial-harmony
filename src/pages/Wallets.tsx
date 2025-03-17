@@ -1,14 +1,40 @@
 
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { wallets } from "@/data/dummyData";
+import { wallets as initialWallets } from "@/data/dummyData";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, CreditCard, Wallet as WalletIcon, Banknote, PiggyBank, Users } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Wallets = () => {
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const [walletList, setWalletList] = useState(initialWallets);
+  const [open, setOpen] = useState(false);
+  const [newWallet, setNewWallet] = useState({
+    name: "",
+    type: "",
+    balance: 0,
+    color: "#83C5BE",
+  });
+
+  const walletTypes = ["cash", "bank", "savings", "gam3eya"];
+  const colorOptions = ["#83C5BE", "#E29578", "#006D77", "#FFDDD2", "#4ECDC4", "#FF6B6B"];
   
   const getWalletIcon = (type: string) => {
     switch (type) {
@@ -25,16 +51,140 @@ const Wallets = () => {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewWallet({
+      ...newWallet,
+      [name]: name === "balance" ? Number(value) : value,
+    });
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setNewWallet({
+      ...newWallet,
+      [name]: value,
+    });
+  };
+
+  const handleAddWallet = () => {
+    // Basic validation
+    if (!newWallet.name || !newWallet.type) {
+      toast({
+        title: t('validation_error'),
+        description: t('please_fill_all_required_fields'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newId = Math.max(...walletList.map(w => w.id)) + 1;
+    
+    const createdWallet = {
+      id: newId,
+      name: newWallet.name,
+      type: newWallet.type,
+      balance: newWallet.balance,
+      color: newWallet.color || colorOptions[Math.floor(Math.random() * colorOptions.length)],
+    };
+
+    setWalletList([...walletList, createdWallet]);
+    setOpen(false);
+    setNewWallet({
+      name: "",
+      type: "",
+      balance: 0,
+      color: "#83C5BE",
+    });
+
+    toast({
+      title: t('success'),
+      description: t('wallet_added_successfully'),
+    });
+  };
+
   // Calculate total balance across all wallets
-  const totalBalance = wallets.reduce((sum, wallet) => sum + wallet.balance, 0);
+  const totalBalance = walletList.reduce((sum, wallet) => sum + wallet.balance, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('wallets')}</h1>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> {t('add_wallet')}
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> {t('add_wallet')}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('add_new_wallet')}</DialogTitle>
+              <DialogDescription>
+                {t('enter_wallet_details')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">{t('wallet_name')}</Label>
+                <Input 
+                  id="name" 
+                  name="name"
+                  value={newWallet.name}
+                  onChange={handleInputChange}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="type">{t('wallet_type')}</Label>
+                <Select 
+                  onValueChange={(value) => handleSelectChange("type", value)}
+                  value={newWallet.type}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('select_wallet_type')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {walletTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {t(type)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="balance">{t('initial_balance')}</Label>
+                <Input 
+                  id="balance" 
+                  name="balance"
+                  type="number"
+                  value={newWallet.balance || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="color">{t('wallet_color')}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`w-8 h-8 rounded-full border-2 ${
+                        newWallet.color === color ? 'border-black' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => handleSelectChange("color", color)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleAddWallet}>{t('add_wallet')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card className="bg-masareef-primary text-white">
@@ -60,7 +210,7 @@ const Wallets = () => {
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
-            {wallets.map((wallet) => (
+            {walletList.map((wallet) => (
               <AccordionItem key={wallet.id} value={`wallet-${wallet.id}`}>
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center space-x-3">
@@ -97,7 +247,18 @@ const Wallets = () => {
                       <Button variant="outline" size="sm" className="flex-1">
                         {t('edit')}
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1 text-red-500">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 text-red-500"
+                        onClick={() => {
+                          setWalletList(walletList.filter(w => w.id !== wallet.id));
+                          toast({
+                            title: t('success'),
+                            description: t('wallet_deleted_successfully'),
+                          });
+                        }}
+                      >
                         {t('delete')}
                       </Button>
                     </div>

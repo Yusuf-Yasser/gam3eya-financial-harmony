@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -6,9 +7,22 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Plus, AlertCircle } from "lucide-react";
 import { calculatePercentage } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Dummy data for budgets
-const budgets = [
+const initialBudgets = [
   {
     id: 1,
     category: "groceries",
@@ -43,16 +57,144 @@ const budgets = [
   }
 ];
 
+// Category options for the dropdown
+const categoryOptions = [
+  "groceries", "transportation", "entertainment", "dining_out", "utilities", 
+  "housing", "healthcare", "clothing", "education", "savings", "other"
+];
+
+// Color options for new budget
+const colorOptions = [
+  "#83C5BE", "#E29578", "#006D77", "#FFDDD2", "#EDF6F9", 
+  "#FF6B6B", "#4ECDC4", "#F7FFF7", "#FFE66D", "#6B5CA5"
+];
+
 const Budgets = () => {
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const [budgets, setBudgets] = useState(initialBudgets);
+  const [open, setOpen] = useState(false);
+  const [newBudget, setNewBudget] = useState({
+    category: "",
+    allocated: 0,
+    spent: 0,
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewBudget({
+      ...newBudget,
+      [name]: name === "category" ? value : Number(value),
+    });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setNewBudget({
+      ...newBudget,
+      category: value,
+    });
+  };
+
+  const handleAddBudget = () => {
+    // Basic validation
+    if (!newBudget.category || !newBudget.allocated) {
+      toast({
+        title: t('validation_error'),
+        description: t('please_fill_all_required_fields'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const remaining = newBudget.allocated - newBudget.spent;
+    const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+    const newId = Math.max(...budgets.map(b => b.id)) + 1;
+
+    const createdBudget = {
+      id: newId,
+      category: newBudget.category,
+      allocated: newBudget.allocated,
+      spent: newBudget.spent,
+      remaining: remaining,
+      color: randomColor
+    };
+
+    setBudgets([...budgets, createdBudget]);
+    setOpen(false);
+    setNewBudget({
+      category: "",
+      allocated: 0,
+      spent: 0,
+    });
+
+    toast({
+      title: t('success'),
+      description: t('budget_added_successfully'),
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('budgets')}</h1>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> {t('add_budget')}
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> {t('add_budget')}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('add_new_budget')}</DialogTitle>
+              <DialogDescription>
+                {t('create_budget_to_track_expenses')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="category">{t('category')}</Label>
+                <Select 
+                  onValueChange={handleCategoryChange}
+                  value={newBudget.category}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('select_category')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {t(category)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="allocated">{t('allocated_amount')}</Label>
+                <Input 
+                  id="allocated" 
+                  name="allocated"
+                  type="number"
+                  value={newBudget.allocated || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="spent">{t('spent_amount')}</Label>
+                <Input 
+                  id="spent" 
+                  name="spent"
+                  type="number"
+                  value={newBudget.spent || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleAddBudget}>{t('add_budget')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Alert className="bg-masareef-light/50 border-masareef-primary">

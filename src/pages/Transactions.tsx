@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TransactionList } from "@/components/dashboard/TransactionList";
-import { transactions } from "@/data/dummyData";
+import { transactions as initialTransactions } from "@/data/dummyData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Filter, Plus } from "lucide-react";
@@ -21,12 +21,94 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+const categoryOptions = [
+  "groceries", "transportation", "entertainment", "dining_out", "utilities", 
+  "housing", "healthcare", "clothing", "education", "savings", "other"
+];
 
 const Transactions = () => {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [transactions, setTransactions] = useState(initialTransactions);
+  const [open, setOpen] = useState(false);
+  const [newTransaction, setNewTransaction] = useState({
+    description: "",
+    amount: 0,
+    date: new Date().toISOString().split('T')[0],
+    category: "",
+    type: "expense",
+  });
+  
   const itemsPerPage = 10;
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewTransaction({
+      ...newTransaction,
+      [name]: name === "amount" ? Number(value) : value,
+    });
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setNewTransaction({
+      ...newTransaction,
+      [name]: value,
+    });
+  };
+
+  const handleAddTransaction = () => {
+    // Basic validation
+    if (!newTransaction.description || !newTransaction.amount || !newTransaction.category) {
+      toast({
+        title: t('validation_error'),
+        description: t('please_fill_all_required_fields'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newId = Math.max(...transactions.map(t => t.id)) + 1;
+    
+    const createdTransaction = {
+      id: newId,
+      description: newTransaction.description,
+      amount: newTransaction.amount,
+      date: newTransaction.date,
+      category: newTransaction.category,
+      type: newTransaction.type,
+    };
+
+    setTransactions([createdTransaction, ...transactions]);
+    setOpen(false);
+    setNewTransaction({
+      description: "",
+      amount: 0,
+      date: new Date().toISOString().split('T')[0],
+      category: "",
+      type: "expense",
+    });
+
+    toast({
+      title: t('success'),
+      description: t('transaction_added_successfully'),
+    });
+  };
 
   // Filter transactions based on search term
   const filteredTransactions = transactions.filter(
@@ -50,9 +132,93 @@ const Transactions = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('transactions')}</h1>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> {t('add_transaction')}
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> {t('add_transaction')}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('add_new_transaction')}</DialogTitle>
+              <DialogDescription>
+                {t('enter_transaction_details')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <RadioGroup 
+                defaultValue="expense" 
+                className="flex justify-center space-x-4"
+                value={newTransaction.type}
+                onValueChange={(value) => handleSelectChange("type", value)}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="expense" id="expense" />
+                  <Label htmlFor="expense">{t('expense')}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="income" id="income" />
+                  <Label htmlFor="income">{t('income')}</Label>
+                </div>
+              </RadioGroup>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="description">{t('description')}</Label>
+                <Input 
+                  id="description" 
+                  name="description"
+                  value={newTransaction.description}
+                  onChange={handleInputChange}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="amount">{t('amount')}</Label>
+                  <Input 
+                    id="amount" 
+                    name="amount"
+                    type="number"
+                    value={newTransaction.amount || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="date">{t('date')}</Label>
+                  <Input 
+                    id="date" 
+                    name="date"
+                    type="date"
+                    value={newTransaction.date}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="category">{t('category')}</Label>
+                <Select 
+                  onValueChange={(value) => handleSelectChange("category", value)}
+                  value={newTransaction.category}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('select_category')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {t(category)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleAddTransaction}>{t('add_transaction')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
