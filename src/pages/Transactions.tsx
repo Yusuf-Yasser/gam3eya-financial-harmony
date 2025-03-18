@@ -54,7 +54,17 @@ const Transactions = () => {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [newTransaction, setNewTransaction] = useState({
+  const [newTransaction, setNewTransaction] = useState<{
+    id?: string;
+    description: string;
+    amount: number;
+    date: string;
+    category: string;
+    type: string;
+    walletId: string;
+    receiptUrl: string;
+  }>({
+    id: "",
     description: "",
     amount: 0,
     date: new Date().toISOString().split('T')[0],
@@ -108,11 +118,15 @@ const Transactions = () => {
       return;
     }
 
-    if (isEditing) {
+    if (isEditing && newTransaction.id) {
       // Update existing transaction
       const updatedTransactions = transactions.map(t => 
         t.id === newTransaction.id ? 
-          {...newTransaction, type: newTransaction.type as 'income' | 'expense'} : 
+          {
+            ...newTransaction,
+            id: newTransaction.id,
+            type: newTransaction.type as 'income' | 'expense'
+          } as Transaction : 
           t
       );
       setTransactions(updatedTransactions);
@@ -129,7 +143,7 @@ const Transactions = () => {
       
       const newId = `t${maxId + 1}`;
       
-      const createdTransaction = {
+      const createdTransaction: Transaction = {
         id: newId,
         description: newTransaction.description,
         amount: newTransaction.amount,
