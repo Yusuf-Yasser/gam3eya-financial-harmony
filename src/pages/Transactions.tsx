@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TransactionList } from "@/components/dashboard/TransactionList";
@@ -62,7 +61,7 @@ const Transactions = () => {
     category: string;
     type: string;
     walletId: string;
-    receiptUrl: string;
+    receiptUrl: string | undefined;
   }>({
     id: "",
     description: "",
@@ -71,7 +70,7 @@ const Transactions = () => {
     category: "",
     type: "expense",
     walletId: wallets.length > 0 ? wallets[0].id : "",
-    receiptUrl: ""
+    receiptUrl: undefined
   });
   
   const itemsPerPage = 10;
@@ -94,7 +93,6 @@ const Transactions = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Create a fake URL for the uploaded file (in a real app, you would upload to a server)
       const receiptUrl = URL.createObjectURL(file);
       setNewTransaction({
         ...newTransaction,
@@ -108,7 +106,6 @@ const Transactions = () => {
   };
 
   const handleAddTransaction = () => {
-    // Basic validation
     if (!newTransaction.description || !newTransaction.amount || !newTransaction.category) {
       toast({
         title: t('validation_error'),
@@ -119,7 +116,6 @@ const Transactions = () => {
     }
 
     if (isEditing && newTransaction.id) {
-      // Update existing transaction
       const updatedTransactions = transactions.map(t => 
         t.id === newTransaction.id ? 
           {
@@ -135,7 +131,6 @@ const Transactions = () => {
         description: t('transaction_updated_successfully'),
       });
     } else {
-      // Generate a string ID with 't' prefix and a number
       const maxId = transactions.reduce((max, t) => {
         const idNum = parseInt(t.id.replace('t', ''));
         return idNum > max ? idNum : max;
@@ -151,7 +146,7 @@ const Transactions = () => {
         category: newTransaction.category,
         type: newTransaction.type as 'income' | 'expense',
         walletId: newTransaction.walletId,
-        receiptUrl: newTransaction.receiptUrl || undefined,
+        receiptUrl: newTransaction.receiptUrl,
       };
 
       setTransactions([createdTransaction, ...transactions]);
@@ -174,7 +169,7 @@ const Transactions = () => {
       category: "",
       type: "expense",
       walletId: wallets.length > 0 ? wallets[0].id : "",
-      receiptUrl: ""
+      receiptUrl: undefined
     });
     setIsEditing(false);
   };
@@ -184,18 +179,17 @@ const Transactions = () => {
     setNewTransaction({
       ...transaction,
       id: transaction.id,
+      receiptUrl: transaction.receiptUrl || undefined
     });
     setOpen(true);
   };
 
-  // Filter transactions based on search term
   const filteredTransactions = transactions.filter(
     (transaction) =>
       transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t(transaction.category).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get current transactions
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentTransactions = filteredTransactions.slice(
@@ -203,10 +197,8 @@ const Transactions = () => {
     indexOfLastItem
   );
 
-  // Change page
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-  // Get appropriate category options based on transaction type
   const categoryOptions = newTransaction.type === 'income' 
     ? incomeCategoryOptions 
     : expenseCategoryOptions;
@@ -239,7 +231,6 @@ const Transactions = () => {
                 className="flex justify-center space-x-4"
                 value={newTransaction.type}
                 onValueChange={(value) => {
-                  // Reset category when changing transaction type
                   handleSelectChange("type", value);
                   handleSelectChange("category", "");
                 }}
