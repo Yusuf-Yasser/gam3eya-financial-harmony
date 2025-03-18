@@ -51,9 +51,9 @@ const Dashboard = () => {
   const balanceAdjustment = monthDiff * (financialSummary.totalExpenses * 0.15);
   
   const adjustedSummary = {
-    totalBalance: financialSummary.totalBalance - balanceAdjustment,
-    totalIncome: monthlySummary.income || financialSummary.totalIncome * (0.9 ** monthDiff),
-    totalExpenses: monthlySummary.expenses || financialSummary.totalExpenses * (0.85 ** monthDiff)
+    totalBalance: financialSummary.totalBalance, // Keep total balance constant
+    totalIncome: monthlySummary.income || 0,
+    totalExpenses: monthlySummary.expenses || 0
   };
 
   return (
@@ -77,14 +77,14 @@ const Dashboard = () => {
           title={t('income')}
           value={formatCurrency(adjustedSummary.totalIncome)}
           icon={<ArrowDown className="h-5 w-5 text-green-600" />}
-          trend={selectedMonth === currentMonth ? 5 : undefined}
+          trend={selectedDate.getMonth() === new Date().getMonth() ? 5 : undefined}
           className="border-l-4 border-green-500"
         />
         <StatCard
           title={t('expenses')}
           value={formatCurrency(adjustedSummary.totalExpenses)}
           icon={<ArrowUp className="h-5 w-5 text-red-600" />}
-          trend={selectedMonth === currentMonth ? -2 : undefined}
+          trend={selectedDate.getMonth() === new Date().getMonth() ? -2 : undefined}
           className="border-l-4 border-red-500"
         />
       </div>
