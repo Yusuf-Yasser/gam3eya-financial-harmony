@@ -8,11 +8,13 @@ import { IncomeIcon, ExpenseIcon } from './TransactionIcons';
 interface TransactionListProps {
   transactions: Transaction[];
   emptyMessage?: string;
+  onEdit?: (transaction: Transaction) => void;
 }
 
 export const TransactionList: React.FC<TransactionListProps> = ({ 
   transactions,
-  emptyMessage
+  emptyMessage,
+  onEdit
 }) => {
   const { t } = useLanguage();
 
@@ -27,7 +29,11 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   return (
     <div className="space-y-4">
       {transactions.map((transaction) => (
-        <div key={transaction.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+        <div 
+          key={transaction.id} 
+          className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+          onClick={() => onEdit && onEdit(transaction)}
+        >
           <div className="flex items-center space-x-4">
             <div className={`p-2 rounded-full ${
               transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'

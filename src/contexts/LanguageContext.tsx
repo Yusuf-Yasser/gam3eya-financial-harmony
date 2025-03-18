@@ -1,8 +1,10 @@
+
 import React, { createContext, useContext, useState } from 'react';
 
 type LanguageContextType = {
   language: 'en' | 'ar';
   setLanguage: (language: 'en' | 'ar') => void;
+  toggleLanguage: () => void;
   t: (key: string) => string;
 };
 
@@ -108,12 +110,16 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
 
+  const toggleLanguage = () => {
+    setLanguage(prevLanguage => prevLanguage === 'en' ? 'ar' : 'en');
+  };
+
   const t = (key: string) => {
     return translations[language][key] || key;
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
