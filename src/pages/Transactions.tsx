@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TransactionList } from "@/components/dashboard/TransactionList";
 import { transactions as initialTransactions } from "@/data/dummyData";
@@ -25,6 +25,19 @@ import { Transaction } from "@/data/dummyData";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
+import { FilterOptions } from "@/components/transactions/AdvancedTransactionFilters";
+
+// Helper function to get highest amount for the slider max value
+const getMaxAmount = (transactions: Transaction[]): number => {
+  const maxAmount = Math.max(...transactions.map(t => t.amount));
+  // Round up to the nearest 1000
+  return Math.ceil(maxAmount / 1000) * 1000;
+};
+
+// Helper function to get all unique categories
+const getUniqueCategories = (transactions: Transaction[]): string[] => {
+  return Array.from(new Set(transactions.map(t => t.category)));
+};
 
 const Transactions = () => {
   const { t } = useLanguage();
@@ -35,6 +48,30 @@ const Transactions = () => {
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
+  
+  // Calculate max amount and unique categories
+  const maxAmount = useMemo(() => getMaxAmount(transactions), [transactions]);
+  const categories = useMemo(() => getUniqueCategories(transactions), [transactions]);
+  
+  // Filter options state
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    dateRange: { from: undefined, to: undefined },
+    categories: [],
+    amountRange: { min: 0, max: maxAmount },
+    types: []
+  });
+
+  // Check if there are active filters
+  const hasActiveFilters = useMemo(() => {
+    return (
+      !!filterOptions.dateRange.from || 
+      !!filterOptions.dateRange.to || 
+      filterOptions.categories.length > 0 || 
+      filterOptions.types.length > 0 ||
+      filterOptions.amountRange.min > 0 || 
+      filterOptions.amountRange.max < maxAmount
+    );
+  }, [filterOptions, maxAmount]);
   
   const itemsPerPage = 10;
 
@@ -76,18 +113,62 @@ const Transactions = () => {
     if (!open) resetForm();
   };
 
-  const filteredTransactions = transactions.filter(
-    (transaction) =>
-      transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t(transaction.category).toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter transactions based on all criteria
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      // Text search filter
+      const matchesSearch = 
+        searchTerm === "" || 
+        transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t(transaction.category).toLowerCase().includes(searchTerm.toLowerCase());
 
+      if (!matchesSearch) return false;
+
+      // Date range filter
+      const transactionDate = new Date(transaction.date);
+      const matchesFromDate = !filterOptions.dateRange.from || 
+        transactionDate >= filterOptions.dateRange.from;
+      const matchesToDate = !filterOptions.dateRange.to || 
+        transactionDate <= filterOptions.dateRange.to;
+
+      if (!matchesFromDate || !matchesToDate) return false;
+
+      // Category filter
+      const matchesCategory = 
+        filterOptions.categories.length === 0 || 
+        filterOptions.categories.includes(transaction.category);
+
+      if (!matchesCategory) return false;
+
+      // Type filter
+      const matchesType = 
+        filterOptions.types.length === 0 || 
+        filterOptions.types.includes(transaction.type);
+
+      if (!matchesType) return false;
+
+      // Amount range filter
+      const matchesAmount = 
+        transaction.amount >= filterOptions.amountRange.min && 
+        transaction.amount <= filterOptions.amountRange.max;
+
+      return matchesAmount;
+    });
+  }, [transactions, searchTerm, filterOptions, t]);
+
+  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentTransactions = filteredTransactions.slice(
     indexOfFirstItem,
     indexOfLastItem
   );
+
+  // Reset to first page when filters change
+  const handleFilterChange = (newFilters: FilterOptions) => {
+    setFilterOptions(newFilters);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -126,7 +207,12 @@ const Transactions = () => {
           </CardDescription>
           <TransactionFilters 
             searchTerm={searchTerm} 
-            onSearchChange={setSearchTerm} 
+            onSearchChange={setSearchTerm}
+            filterOptions={filterOptions}
+            onFilterChange={handleFilterChange}
+            categories={categories}
+            maxAmount={maxAmount}
+            hasActiveFilters={hasActiveFilters}
           />
         </CardHeader>
         <CardContent>
@@ -145,7 +231,24 @@ const Transactions = () => {
             </>
           ) : (
             <div className="text-center py-10">
-              <p className="text-muted-foreground">{t('no_transactions_found')}</p>
+              <p className="text-muted-foreground">
+                {hasActiveFilters ? t('no_matching_transactions') : t('no_transactions_found')}
+              </p>
+              {hasActiveFilters && (
+                <Button 
+                  variant="link" 
+                  onClick={() => {
+                    setFilterOptions({
+                      dateRange: { from: undefined, to: undefined },
+                      categories: [],
+                      amountRange: { min: 0, max: maxAmount },
+                      types: []
+                    });
+                  }}
+                >
+                  {t('clear_filters')}
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

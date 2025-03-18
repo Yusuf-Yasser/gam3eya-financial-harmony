@@ -1,17 +1,40 @@
 
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, X } from "lucide-react";
+import { 
+  Sheet,
+  SheetContent,
+  SheetTrigger 
+} from "@/components/ui/sheet";
+import { 
+  AdvancedTransactionFilters, 
+  FilterOptions 
+} from "./AdvancedTransactionFilters";
 
 interface TransactionFiltersProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  onFilter?: () => void;
+  filterOptions: FilterOptions;
+  onFilterChange: (filters: FilterOptions) => void;
+  categories: string[];
+  maxAmount: number;
+  hasActiveFilters: boolean;
 }
 
-export function TransactionFilters({ searchTerm, onSearchChange, onFilter }: TransactionFiltersProps) {
+export function TransactionFilters({ 
+  searchTerm, 
+  onSearchChange, 
+  filterOptions,
+  onFilterChange,
+  categories,
+  maxAmount,
+  hasActiveFilters
+}: TransactionFiltersProps) {
   const { t } = useLanguage();
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 pt-2">
@@ -24,9 +47,51 @@ export function TransactionFilters({ searchTerm, onSearchChange, onFilter }: Tra
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
-      <Button variant="outline" className="sm:w-auto w-full" onClick={onFilter}>
-        <Filter className="mr-2 h-4 w-4" /> {t('filter')}
-      </Button>
+      
+      <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+        <SheetTrigger asChild>
+          <Button 
+            variant={hasActiveFilters ? "default" : "outline"} 
+            className="sm:w-auto w-full relative"
+          >
+            <Filter className="mr-2 h-4 w-4" /> 
+            {t('filter')}
+            {hasActiveFilters && (
+              <span className="absolute -top-1 -right-1 bg-primary-foreground text-primary rounded-full w-4 h-4 flex items-center justify-center text-xs">
+                •
+              </span>
+            )}
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="overflow-y-auto">
+          <AdvancedTransactionFilters 
+            filterOptions={filterOptions}
+            onFilterChange={onFilterChange}
+            onClose={() => setIsFiltersOpen(false)}
+            categories={categories}
+            maxAmount={maxAmount}
+          />
+        </SheetContent>
+      </Sheet>
+      
+      {hasActiveFilters && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="sm:flex hidden items-center gap-1"
+          onClick={() => {
+            onFilterChange({
+              dateRange: { from: undefined, to: undefined },
+              categories: [],
+              amountRange: { min: 0, max: maxAmount },
+              types: []
+            });
+          }}
+        >
+          <X className="h-4 w-4" />
+          {t('clear_filters')}
+        </Button>
+      )}
     </div>
   );
 }

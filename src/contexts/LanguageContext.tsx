@@ -21,6 +21,8 @@ const translations = {
     'recent_transactions': 'Recent Transactions',
     'see_all': 'See All',
     'no_transactions': 'No recent transactions',
+    'no_transactions_found': 'No transactions found',
+    'no_matching_transactions': 'No transactions match your filters',
     'more': 'More',
     
     // Navigation
@@ -39,9 +41,13 @@ const translations = {
     'save': 'Save',
     'cancel': 'Cancel',
     'confirm': 'Confirm',
+    'apply_filters': 'Apply Filters',
+    'clear_filters': 'Clear Filters',
+    'reset': 'Reset',
     
     // Categories
     'category': 'Category',
+    'categories': 'Categories',
     'food': 'Food',
     'transport': 'Transportation',
     'housing': 'Housing',
@@ -63,12 +69,29 @@ const translations = {
     
     // Transactions
     'add_transaction': 'Add Transaction',
+    'edit_transaction': 'Edit Transaction',
+    'add_new_transaction': 'Add New Transaction',
+    'edit_transaction_details': 'Edit transaction details',
+    'enter_transaction_details': 'Enter transaction details',
     'amount': 'Amount',
+    'amount_range': 'Amount Range',
     'date': 'Date',
+    'date_range': 'Date Range',
+    'start_date': 'Start Date',
+    'end_date': 'End Date',
     'description': 'Description',
     'transaction_type': 'Transaction Type',
+    'transaction_updated_successfully': 'Transaction updated successfully',
+    'transaction_added_successfully': 'Transaction added successfully',
+    'all_transactions': 'All Transactions',
+    'view_and_manage_your_financial_activities': 'View and manage your financial activities',
+    'search_transactions': 'Search transactions',
+    'filter': 'Filter',
+    'filter_transactions': 'Filter Transactions',
     'wallet': 'Wallet',
     'add_receipt': 'Add Receipt',
+    'receipt': 'Receipt',
+    'success': 'Success',
     
     // Gam3eya
     'create_gam3eya': 'Create Gam3eya',
@@ -76,8 +99,6 @@ const translations = {
     'members': 'Members',
     'cycle': 'Cycle',
     'contribution': 'Contribution',
-    'end_date': 'End Date',
-    'start_date': 'Start Date',
     'payment_schedule': 'Payment Schedule',
     'my_gam3eyas': 'My Gam3eyas',
     
@@ -107,6 +128,8 @@ const translations = {
     'recent_transactions': 'المعاملات الأخيرة',
     'see_all': 'عرض الكل',
     'no_transactions': 'لا توجد معاملات حديثة',
+    'no_transactions_found': 'لم يتم العثور على معاملات',
+    'no_matching_transactions': 'لا توجد معاملات تطابق عوامل التصفية',
     'more': 'المزيد',
     
     // Navigation
@@ -125,9 +148,13 @@ const translations = {
     'save': 'حفظ',
     'cancel': 'إلغاء',
     'confirm': 'تأكيد',
+    'apply_filters': 'تطبيق الفلاتر',
+    'clear_filters': 'مسح الفلاتر',
+    'reset': 'إعادة ضبط',
     
     // Categories
     'category': 'الفئة',
+    'categories': 'الفئات',
     'food': 'طعام',
     'transport': 'مواصلات',
     'housing': 'سكن',
@@ -149,12 +176,29 @@ const translations = {
     
     // Transactions
     'add_transaction': 'إضافة معاملة',
+    'edit_transaction': 'تعديل المعاملة',
+    'add_new_transaction': 'إضافة معاملة جديدة',
+    'edit_transaction_details': 'تعديل تفاصيل المعاملة',
+    'enter_transaction_details': 'أدخل تفاصيل المعاملة',
     'amount': 'المبلغ',
+    'amount_range': 'نطاق المبلغ',
     'date': 'التاريخ',
+    'date_range': 'الفترة الزمنية',
+    'start_date': 'تاريخ البدء',
+    'end_date': 'تاريخ الانتهاء',
     'description': 'الوصف',
     'transaction_type': 'نوع المعاملة',
+    'transaction_updated_successfully': 'تم تحديث المعاملة بنجاح',
+    'transaction_added_successfully': 'تمت إضافة المعاملة بنجاح',
+    'all_transactions': 'جميع المعاملات',
+    'view_and_manage_your_financial_activities': 'عرض وإدارة أنشطتك المالية',
+    'search_transactions': 'البحث في المعاملات',
+    'filter': 'تصفية',
+    'filter_transactions': 'تصفية المعاملات',
     'wallet': 'المحفظة',
     'add_receipt': 'إضافة إيصال',
+    'receipt': 'إيصال',
+    'success': 'نجاح',
     
     // Gam3eya
     'create_gam3eya': 'إنشاء جمعية',
@@ -162,8 +206,6 @@ const translations = {
     'members': 'الأعضاء',
     'cycle': 'الدورة',
     'contribution': 'المساهمة',
-    'end_date': 'تاريخ الانتهاء',
-    'start_date': 'تاريخ البدء',
     'payment_schedule': 'جدول الدفع',
     'my_gam3eyas': 'جمعياتي',
     
