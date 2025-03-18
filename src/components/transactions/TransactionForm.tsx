@@ -9,6 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Paperclip } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Separate categories for expense and income
 const expenseCategoryOptions = [
@@ -20,6 +32,20 @@ const incomeCategoryOptions = [
   "salary", "freelance", "investments", "gifts", "refunds", "side_hustle", "other"
 ];
 
+// Define form schema using zod
+const formSchema = z.object({
+  description: z.string().min(3, { message: "Description must be at least 3 characters" }),
+  amount: z.number().positive({ message: "Amount must be positive" }),
+  date: z.string().nonempty({ message: "Date is required" }),
+  category: z.string().nonempty({ message: "Please select a category" }),
+  type: z.enum(["income", "expense"]),
+  walletId: z.string().nonempty({ message: "Please select a wallet" }),
+});
+
+type FormValues = z.infer<typeof formSchema> & {
+  receiptUrl?: string;
+};
+
 interface TransactionFormProps {
   isEditing: boolean;
   onSave: (transaction: Transaction) => void;
@@ -30,59 +56,43 @@ interface TransactionFormProps {
 export function TransactionForm({ isEditing, onSave, editingTransaction, onCancel }: TransactionFormProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const [transaction, setTransaction] = useState<{
-    id?: string;
-    description: string;
-    amount: number;
-    date: string;
-    category: string;
-    type: string;
-    walletId: string;
-    receiptUrl: string | undefined;
-  }>({
-    id: "",
-    description: "",
-    amount: 0,
-    date: new Date().toISOString().split('T')[0],
-    category: "",
-    type: "expense",
-    walletId: wallets.length > 0 ? wallets[0].id : "",
-    receiptUrl: undefined
+  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
+  
+  // Initialize form with react-hook-form and zod validation
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      description: "",
+      amount: 0,
+      date: new Date().toISOString().split('T')[0],
+      category: "",
+      type: "expense",
+      walletId: wallets.length > 0 ? wallets[0].id : "",
+      receiptUrl: undefined
+    }
   });
-
+  
+  // Update form values when editing an existing transaction
   useEffect(() => {
     if (isEditing && editingTransaction) {
-      setTransaction({
-        ...editingTransaction,
-        id: editingTransaction.id,
-        receiptUrl: editingTransaction.receiptUrl || undefined
+      form.reset({
+        description: editingTransaction.description,
+        amount: editingTransaction.amount,
+        date: editingTransaction.date,
+        category: editingTransaction.category,
+        type: editingTransaction.type,
+        walletId: editingTransaction.walletId,
       });
+      setReceiptUrl(editingTransaction.receiptUrl);
     }
-  }, [isEditing, editingTransaction]);
+  }, [isEditing, editingTransaction, form]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setTransaction({
-      ...transaction,
-      [name]: name === "amount" ? Number(value) : value,
-    });
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setTransaction({
-      ...transaction,
-      [name]: value,
-    });
-  };
-
+  // Handle file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const receiptUrl = URL.createObjectURL(file);
-      setTransaction({
-        ...transaction,
-        receiptUrl
-      });
+      const fileUrl = URL.createObjectURL(file);
+      setReceiptUrl(fileUrl);
       toast({
         title: t('receipt_attached'),
         description: file.name,
@@ -90,164 +100,211 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
     }
   };
 
-  const handleSave = () => {
-    if (!transaction.description || !transaction.amount || !transaction.category) {
-      toast({
-        title: t('validation_error'),
-        description: t('please_fill_all_required_fields'),
-        variant: "destructive",
-      });
-      return;
-    }
-
+  // Form submission handler
+  const onSubmit = (values: FormValues) => {
     const savedTransaction: Transaction = {
-      id: transaction.id || `t${Date.now()}`,
-      description: transaction.description,
-      amount: transaction.amount,
-      date: transaction.date,
-      category: transaction.category,
-      type: transaction.type as 'income' | 'expense',
-      walletId: transaction.walletId,
-      receiptUrl: transaction.receiptUrl,
+      id: editingTransaction?.id || `t${Date.now()}`,
+      description: values.description,
+      amount: values.amount,
+      date: values.date,
+      category: values.category,
+      type: values.type,
+      walletId: values.walletId,
+      receiptUrl: receiptUrl,
     };
 
     onSave(savedTransaction);
   };
 
-  const categoryOptions = transaction.type === 'income' 
-    ? incomeCategoryOptions 
-    : expenseCategoryOptions;
+  // Get current category options based on selected transaction type
+  const getCategoryOptions = () => {
+    return form.watch("type") === "income" 
+      ? incomeCategoryOptions 
+      : expenseCategoryOptions;
+  };
 
   return (
-    <div className="grid gap-4 py-4">
-      <RadioGroup 
-        defaultValue="expense" 
-        className="flex justify-center space-x-4"
-        value={transaction.type}
-        onValueChange={(value) => {
-          handleSelectChange("type", value);
-          handleSelectChange("category", "");
-        }}
-      >
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="expense" id="expense" />
-          <Label htmlFor="expense">{t('expense')}</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="income" id="income" />
-          <Label htmlFor="income">{t('income')}</Label>
-        </div>
-      </RadioGroup>
-      
-      <div className="grid gap-2">
-        <Label htmlFor="description">{t('description')}</Label>
-        <Input 
-          id="description" 
-          name="description"
-          value={transaction.description}
-          onChange={handleInputChange}
-        />
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="amount">{t('amount')}</Label>
-          <Input 
-            id="amount" 
-            name="amount"
-            type="number"
-            value={transaction.amount || ""}
-            onChange={handleInputChange}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="date">{t('date')}</Label>
-          <Input 
-            id="date" 
-            name="date"
-            type="date"
-            value={transaction.date}
-            onChange={handleInputChange}
-          />
-        </div>
-      </div>
-      
-      <div className="grid gap-2">
-        <Label htmlFor="category">{t('category')}</Label>
-        <Select 
-          onValueChange={(value) => handleSelectChange("category", value)}
-          value={transaction.category}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('select_category')} />
-          </SelectTrigger>
-          <SelectContent>
-            {categoryOptions.map((category) => (
-              <SelectItem key={category} value={category}>
-                {t(category)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="grid gap-2">
-        <Label htmlFor="wallet">{t('wallet')}</Label>
-        <Select 
-          onValueChange={(value) => handleSelectChange("walletId", value)}
-          value={transaction.walletId}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('select_wallet')} />
-          </SelectTrigger>
-          <SelectContent>
-            {wallets.map((wallet) => (
-              <SelectItem key={wallet.id} value={wallet.id}>
-                {wallet.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="grid gap-2">
-        <Label htmlFor="receipt">{t('receipt')}</Label>
-        <div className="flex items-center gap-2">
-          <Input
-            id="receipt"
-            name="receipt"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => document.getElementById('receipt')?.click()}
-            className="w-full"
-          >
-            <Paperclip className="mr-2 h-4 w-4" />
-            {transaction.receiptUrl ? t('receipt_attached') : t('attach_receipt')}
-          </Button>
-          {transaction.receiptUrl && (
-            <img 
-              src={transaction.receiptUrl} 
-              alt="Receipt preview" 
-              className="w-12 h-12 object-cover rounded border" 
-            />
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Transaction Type Selection */}
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <RadioGroup 
+                  className="flex justify-center space-x-4"
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue("category", ""); // Reset category when type changes
+                  }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="expense" id="expense" />
+                    <Label htmlFor="expense">{t('expense')}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="income" id="income" />
+                    <Label htmlFor="income">{t('income')}</Label>
+                  </div>
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
+        />
+        
+        {/* Description Field */}
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('description')}</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        {/* Amount and Date Fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('amount')}</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    {...field} 
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('date')}</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
-      </div>
-      
-      <div className="flex justify-end space-x-2 mt-4">
-        <Button variant="outline" onClick={onCancel}>
-          {t('cancel')}
-        </Button>
-        <Button onClick={handleSave}>
-          {isEditing ? t('update_transaction') : t('add_transaction')}
-        </Button>
-      </div>
-    </div>
+        
+        {/* Category Selection */}
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('category')}</FormLabel>
+              <Select 
+                onValueChange={field.onChange}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('select_category')} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {getCategoryOptions().map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {t(category)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        {/* Wallet Selection */}
+        <FormField
+          control={form.control}
+          name="walletId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('wallet')}</FormLabel>
+              <Select 
+                onValueChange={field.onChange}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('select_wallet')} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {wallets.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        {/* Receipt Upload */}
+        <div className="grid gap-2">
+          <Label htmlFor="receipt">{t('receipt')}</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="receipt"
+              name="receipt"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => document.getElementById('receipt')?.click()}
+              className="w-full"
+            >
+              <Paperclip className="mr-2 h-4 w-4" />
+              {receiptUrl ? t('receipt_attached') : t('attach_receipt')}
+            </Button>
+            {receiptUrl && (
+              <img 
+                src={receiptUrl} 
+                alt="Receipt preview" 
+                className="w-12 h-12 object-cover rounded border" 
+              />
+            )}
+          </div>
+        </div>
+        
+        {/* Form submission buttons */}
+        <div className="flex justify-end space-x-2 mt-4">
+          <Button variant="outline" onClick={onCancel} type="button">
+            {t('cancel')}
+          </Button>
+          <Button type="submit">
+            {isEditing ? t('update_transaction') : t('add_transaction')}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
