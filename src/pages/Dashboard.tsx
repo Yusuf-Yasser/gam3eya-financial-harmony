@@ -13,7 +13,8 @@ import { formatCurrency } from "@/lib/utils";
 
 const Dashboard = () => {
   const { t } = useLanguage();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // Set default date to March 2025
+  const [selectedDate, setSelectedDate] = useState(new Date(2025, 2, 15)); // March is month 2 (0-indexed)
   const [monthlyTrends, setMonthlyTrends] = useState({ income: 0, expenses: 0 });
   
   // Filter transactions for the selected month

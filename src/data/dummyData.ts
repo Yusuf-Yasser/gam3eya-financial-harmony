@@ -1,4 +1,3 @@
-
 // Dummy data for the app
 
 export interface Transaction {
@@ -91,7 +90,7 @@ export const wallets: Wallet[] = [
   },
 ];
 
-// Dummy transactions
+// Dummy transactions - updated for March 2025
 export const transactions: Transaction[] = [
   {
     id: 't1',
@@ -99,7 +98,7 @@ export const transactions: Transaction[] = [
     type: 'expense',
     category: 'food',
     description: 'Grocery shopping',
-    date: '2023-09-15',
+    date: '2025-03-15',
     walletId: 'w1',
   },
   {
@@ -108,7 +107,7 @@ export const transactions: Transaction[] = [
     type: 'expense',
     category: 'transport',
     description: 'Uber rides',
-    date: '2023-09-14',
+    date: '2025-03-14',
     walletId: 'w1',
   },
   {
@@ -117,7 +116,7 @@ export const transactions: Transaction[] = [
     type: 'income',
     category: 'other',
     description: 'Salary',
-    date: '2023-09-01',
+    date: '2025-03-01',
     walletId: 'w2',
   },
   {
@@ -126,7 +125,7 @@ export const transactions: Transaction[] = [
     type: 'expense',
     category: 'entertainment',
     description: 'Cinema tickets',
-    date: '2023-09-10',
+    date: '2025-03-10',
     walletId: 'w2',
   },
   {
@@ -135,7 +134,7 @@ export const transactions: Transaction[] = [
     type: 'expense',
     category: 'housing',
     description: 'Rent',
-    date: '2023-09-05',
+    date: '2025-03-05',
     walletId: 'w2',
   },
   {
@@ -144,9 +143,46 @@ export const transactions: Transaction[] = [
     type: 'income',
     category: 'other',
     description: 'Freelance work',
-    date: '2023-09-12',
+    date: '2025-03-12',
     walletId: 'w3',
   },
+  // Add some previous month transactions for February 2025
+  {
+    id: 't7',
+    amount: 450,
+    type: 'expense',
+    category: 'food',
+    description: 'Grocery shopping',
+    date: '2025-02-15',
+    walletId: 'w1',
+  },
+  {
+    id: 't8',
+    amount: 950,
+    type: 'expense',
+    category: 'transport',
+    description: 'Uber rides',
+    date: '2025-02-14',
+    walletId: 'w1',
+  },
+  {
+    id: 't9',
+    amount: 9500,
+    type: 'income',
+    category: 'other',
+    description: 'Salary',
+    date: '2025-02-01',
+    walletId: 'w2',
+  },
+  {
+    id: 't10',
+    amount: 1800,
+    type: 'expense',
+    category: 'entertainment',
+    description: 'Cinema tickets',
+    date: '2025-02-10',
+    walletId: 'w2',
+  }
 ];
 
 // Dummy budgets
@@ -182,12 +218,12 @@ export const gam3eyas: Gam3eya[] = [
     totalAmount: 80000,
     contributionAmount: 2000,
     members: 10,
-    startDate: '2023-01-01',
-    endDate: '2023-10-31',
-    currentCycle: 9,
+    startDate: '2025-01-01',
+    endDate: '2025-10-31',
+    currentCycle: 3,
     totalCycles: 10,
     isAdmin: true,
-    nextPaymentDate: '2023-09-30',
+    nextPaymentDate: '2025-03-31',
   },
   {
     id: 'g2',
@@ -195,12 +231,12 @@ export const gam3eyas: Gam3eya[] = [
     totalAmount: 60000,
     contributionAmount: 1500,
     members: 8,
-    startDate: '2023-04-01',
-    endDate: '2023-11-30',
-    currentCycle: 6,
+    startDate: '2025-01-01',
+    endDate: '2025-08-31',
+    currentCycle: 3,
     totalCycles: 8,
     isAdmin: false,
-    nextPaymentDate: '2023-09-25',
+    nextPaymentDate: '2025-03-25',
   },
 ];
 
