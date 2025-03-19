@@ -10,6 +10,7 @@ import { ArrowDown, ArrowUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { t } = useLanguage();
@@ -141,8 +142,8 @@ const Dashboard = () => {
                 {t('your_recent_financial_activities')}
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm">
-              {t('see_all')}
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/transactions">{t('see_all')}</Link>
             </Button>
           </CardHeader>
           <CardContent>

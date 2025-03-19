@@ -14,6 +14,7 @@ import Gam3eya from "@/pages/Gam3eya";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
+import Reminders from "@/pages/Reminders";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,11 @@ const App = () => (
             <Route path="/gam3eya" element={
               <Layout>
                 <Gam3eya />
+              </Layout>
+            } />
+            <Route path="/reminders" element={
+              <Layout>
+                <Reminders />
               </Layout>
             } />
             <Route path="/reports" element={
