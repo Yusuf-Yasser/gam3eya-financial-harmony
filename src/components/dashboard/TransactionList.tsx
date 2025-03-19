@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { IncomeIcon, ExpenseIcon } from './TransactionIcons';
 import { Button } from '@/components/ui/button';
 import { Pencil, Eye } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -22,7 +23,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onEdit,
   showControls = false
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isMobile = useIsMobile();
 
   if (transactions.length === 0) {
     return (
@@ -40,7 +42,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
         >
           <div 
-            className="flex items-center space-x-4 flex-1 cursor-pointer"
+            className="flex items-center space-x-3 rtl:space-x-reverse flex-1 cursor-pointer"
             onClick={() => onView && onView(transaction)}
           >
             <div className={`p-2 rounded-full ${
@@ -48,24 +50,29 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             }`}>
               {transaction.type === 'income' ? <IncomeIcon /> : <ExpenseIcon />}
             </div>
-            <div>
-              <div className="font-medium">{transaction.description}</div>
-              <div className="text-sm text-muted-foreground">{formatDate(transaction.date)} • {t(transaction.category)}</div>
+            <div className="min-w-0">
+              <div className="font-medium truncate">{transaction.description}</div>
+              <div className="text-sm text-muted-foreground truncate">
+                {formatDate(transaction.date)} • {t(transaction.category)}
+              </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className={`font-medium ${
+          <div className={`flex items-center ${isMobile ? 'flex-col items-end space-y-1' : 'space-x-2 rtl:space-x-reverse'}`}>
+            <div className={`font-medium ${isMobile ? 'text-sm' : ''} ${
               transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
             }`}>
               {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
             </div>
             {showControls && (
-              <div className="flex space-x-1">
+              <div className="flex space-x-1 rtl:space-x-reverse">
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8"
-                  onClick={() => onView && onView(transaction)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView && onView(transaction);
+                  }}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>

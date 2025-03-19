@@ -13,6 +13,7 @@ import {
   AdvancedTransactionFilters, 
   FilterOptions 
 } from "./AdvancedTransactionFilters";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TransactionFiltersProps {
   searchTerm: string;
@@ -33,16 +34,17 @@ export function TransactionFilters({
   maxAmount,
   hasActiveFilters
 }: TransactionFiltersProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 pt-2">
       <div className="relative flex-1">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Search className={`absolute ${language === 'ar' ? 'right-2' : 'left-2'} top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4`} />
         <Input
           placeholder={t('search_transactions')}
-          className="pl-8"
+          className={`${language === 'ar' ? 'pr-8' : 'pl-8'}`}
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
         />
@@ -54,7 +56,7 @@ export function TransactionFilters({
             variant={hasActiveFilters ? "default" : "outline"} 
             className="sm:w-auto w-full relative"
           >
-            <Filter className="mr-2 h-4 w-4" /> 
+            <Filter className={`${language === 'ar' ? 'ml-2' : 'mr-2'} h-4 w-4`} /> 
             {t('filter')}
             {hasActiveFilters && (
               <span className="absolute -top-1 -right-1 bg-primary-foreground text-primary rounded-full w-4 h-4 flex items-center justify-center text-xs">
@@ -63,7 +65,7 @@ export function TransactionFilters({
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent className="overflow-y-auto">
+        <SheetContent side={language === 'ar' ? 'right' : 'left'} className="overflow-y-auto">
           <AdvancedTransactionFilters 
             filterOptions={filterOptions}
             onFilterChange={onFilterChange}
@@ -88,7 +90,7 @@ export function TransactionFilters({
             });
           }}
         >
-          <X className="h-4 w-4" />
+          <X className={`${language === 'ar' ? 'ml-1' : 'mr-1'} h-4 w-4`} />
           {t('clear_filters')}
         </Button>
       )}

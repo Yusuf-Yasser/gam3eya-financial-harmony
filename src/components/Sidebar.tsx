@@ -9,7 +9,8 @@ import {
   PieChart, 
   BarChart3, 
   Users, 
-  Settings 
+  Settings,
+  LogOut 
 } from "lucide-react";
 
 interface SidebarItemProps {
@@ -20,6 +21,8 @@ interface SidebarItemProps {
 }
 
 const SidebarItem = ({ icon, label, path, active }: SidebarItemProps) => {
+  const { language } = useLanguage();
+  
   return (
     <Link to={path} className="w-full">
       <div
@@ -30,7 +33,7 @@ const SidebarItem = ({ icon, label, path, active }: SidebarItemProps) => {
             : "hover:bg-masareef-light/50 text-gray-700"
         )}
       >
-        <div className="w-5 h-5 flex items-center justify-center">
+        <div className="w-5 h-5 flex items-center justify-center shrink-0">
           {icon}
         </div>
         <span className="text-sm font-medium">{label}</span>
@@ -40,17 +43,17 @@ const SidebarItem = ({ icon, label, path, active }: SidebarItemProps) => {
 };
 
 export function Sidebar() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const location = useLocation();
   
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="w-64 border-r bg-white h-screen flex flex-col">
+    <div className={`w-64 border-r bg-white h-screen flex flex-col ${language === 'ar' ? 'rtl' : 'ltr'}`}>
       <div className="p-4">
         <h1 className="text-2xl font-bold text-masareef-primary">Masareef</h1>
         <p className="text-xs text-muted-foreground">
-          Smart Budget & Expense Tracker
+          {language === 'ar' ? 'تتبع ذكي للميزانية والمصاريف' : 'Smart Budget & Expense Tracker'}
         </p>
       </div>
       
@@ -91,14 +94,26 @@ export function Sidebar() {
           path="/reports"
           active={isActive('/reports')}
         />
+        <SidebarItem 
+          icon={<Receipt className="w-5 h-5" />} 
+          label={t('reminders')} 
+          path="/reminders"
+          active={isActive('/reminders')}
+        />
       </div>
       
-      <div className="px-3 py-4 border-t">
+      <div className="px-3 py-4 border-t space-y-1">
         <SidebarItem 
           icon={<Settings className="w-5 h-5" />} 
           label={t('settings')} 
           path="/settings"
           active={isActive('/settings')}
+        />
+        <SidebarItem 
+          icon={<LogOut className="w-5 h-5" />} 
+          label={t('logout')} 
+          path="/logout"
+          active={isActive('/logout')}
         />
       </div>
     </div>
