@@ -11,12 +11,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { TransactionDetails } from "@/components/transactions/TransactionDetails";
+import { Transaction } from "@/data/dummyData";
 
 const Dashboard = () => {
   const { t } = useLanguage();
   // Set default date to March 2025
   const [selectedDate, setSelectedDate] = useState(new Date(2025, 2, 15)); // March is month 2 (0-indexed)
   const [monthlyTrends, setMonthlyTrends] = useState({ income: 0, expenses: 0 });
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   
   // Filter transactions for the selected month
   const filteredTransactions = transactions.filter(transaction => {
@@ -88,6 +91,10 @@ const Dashboard = () => {
     totalExpenses: monthlySummary.expenses || 0
   };
 
+  const handleViewTransaction = (transaction: Transaction) => {
+    setViewingTransaction(transaction);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -150,10 +157,22 @@ const Dashboard = () => {
             <TransactionList 
               transactions={recentTransactions} 
               emptyMessage={t('no_transactions_for_month')}
+              onView={handleViewTransaction}
             />
           </CardContent>
         </Card>
       </div>
+
+      {/* Transaction Details Dialog */}
+      <TransactionDetails
+        transaction={viewingTransaction}
+        onClose={() => setViewingTransaction(null)}
+        onEdit={() => {
+          if (viewingTransaction) {
+            window.location.href = `/transactions`;
+          }
+        }}
+      />
     </div>
   );
 };

@@ -26,6 +26,7 @@ import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { FilterOptions } from "@/components/transactions/AdvancedTransactionFilters";
+import { TransactionDetails } from "@/components/transactions/TransactionDetails";
 
 // Helper function to get highest amount for the slider max value
 const getMaxAmount = (transactions: Transaction[]): number => {
@@ -48,6 +49,7 @@ const Transactions = () => {
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   
   // Calculate max amount and unique categories
   const maxAmount = useMemo(() => getMaxAmount(transactions), [transactions]);
@@ -106,11 +108,19 @@ const Transactions = () => {
     setIsEditing(true);
     setEditingTransaction(transaction);
     setOpen(true);
+    // If we were viewing this transaction, close the details view
+    if (viewingTransaction?.id === transaction.id) {
+      setViewingTransaction(null);
+    }
   };
 
   const handleOpenChange = (open: boolean) => {
     setOpen(open);
     if (!open) resetForm();
+  };
+
+  const handleViewTransaction = (transaction: Transaction) => {
+    setViewingTransaction(transaction);
   };
 
   // Filter transactions based on all criteria
@@ -220,7 +230,9 @@ const Transactions = () => {
             <>
               <TransactionList 
                 transactions={currentTransactions} 
+                onView={handleViewTransaction}
                 onEdit={handleEditTransaction}
+                showControls={true}
               />
               <TransactionPagination 
                 currentPage={currentPage}
@@ -253,6 +265,13 @@ const Transactions = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Transaction Details Dialog */}
+      <TransactionDetails
+        transaction={viewingTransaction}
+        onClose={() => setViewingTransaction(null)}
+        onEdit={handleEditTransaction}
+      />
     </div>
   );
 };

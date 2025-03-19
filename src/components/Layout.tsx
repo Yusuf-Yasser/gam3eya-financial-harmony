@@ -6,6 +6,7 @@ import { LanguageToggle } from './LanguageToggle';
 import { Bell, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Link } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
@@ -27,8 +28,10 @@ export function Layout({ children }: LayoutProps) {
             />
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="text-muted-foreground">
-              <Bell className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="text-muted-foreground" asChild>
+              <Link to="/reminders">
+                <Bell className="h-5 w-5" />
+              </Link>
             </Button>
             <LanguageToggle />
           </div>
