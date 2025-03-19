@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TransactionList } from "@/components/dashboard/TransactionList";
@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/utils";
 const Dashboard = () => {
   const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [monthlyTrends, setMonthlyTrends] = useState({ income: 0, expenses: 0 });
   
   // Filter transactions for the selected month
   const filteredTransactions = transactions.filter(transaction => {
@@ -41,14 +42,43 @@ const Dashboard = () => {
     },
     { income: 0, expenses: 0 }
   );
-  
-  // For demo purposes, use financial summary data and adjust based on selected month
-  const currentMonth = new Date().getMonth();
-  const selectedMonth = selectedDate.getMonth();
-  
-  // Simulate different data for past months
-  const monthDiff = currentMonth - selectedMonth + (currentMonth < selectedMonth ? 12 : 0);
-  const balanceAdjustment = monthDiff * (financialSummary.totalExpenses * 0.15);
+
+  // Calculate previous month data to determine trends
+  useEffect(() => {
+    const previousMonthDate = new Date(selectedDate);
+    previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+    
+    const previousMonthTransactions = transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      return (
+        transactionDate.getMonth() === previousMonthDate.getMonth() &&
+        transactionDate.getFullYear() === previousMonthDate.getFullYear()
+      );
+    });
+    
+    const previousMonthSummary = previousMonthTransactions.reduce(
+      (acc, transaction) => {
+        if (transaction.type === "income") {
+          acc.income += transaction.amount;
+        } else {
+          acc.expenses += transaction.amount;
+        }
+        return acc;
+      },
+      { income: 0, expenses: 0 }
+    );
+    
+    // Calculate percentage change
+    const calculateTrend = (current: number, previous: number): number => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+    
+    setMonthlyTrends({
+      income: calculateTrend(monthlySummary.income, previousMonthSummary.income),
+      expenses: calculateTrend(monthlySummary.expenses, previousMonthSummary.expenses)
+    });
+  }, [selectedDate, monthlySummary]);
   
   const adjustedSummary = {
     totalBalance: financialSummary.totalBalance, // Keep total balance constant
@@ -77,14 +107,14 @@ const Dashboard = () => {
           title={t('income')}
           value={formatCurrency(adjustedSummary.totalIncome)}
           icon={<ArrowDown className="h-5 w-5 text-green-600" />}
-          trend={selectedDate.getMonth() === new Date().getMonth() ? 5 : undefined}
+          trend={monthlyTrends.income}
           className="border-l-4 border-green-500"
         />
         <StatCard
           title={t('expenses')}
           value={formatCurrency(adjustedSummary.totalExpenses)}
           icon={<ArrowUp className="h-5 w-5 text-red-600" />}
-          trend={selectedDate.getMonth() === new Date().getMonth() ? -2 : undefined}
+          trend={monthlyTrends.expenses}
           className="border-l-4 border-red-500"
         />
       </div>
