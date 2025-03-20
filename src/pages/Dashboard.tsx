@@ -19,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 const Dashboard = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  // Set default date to current month
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthlyTrends, setMonthlyTrends] = useState({ income: 0, expenses: 0 });
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
@@ -37,13 +36,11 @@ const Dashboard = () => {
     summary: true
   });
   
-  // Fetch data on component mount
   useEffect(() => {
     fetchWallets();
     fetchFinancialSummary();
   }, []);
   
-  // Fetch transactions when selected date changes
   useEffect(() => {
     fetchTransactions();
   }, [selectedDate]);
@@ -70,7 +67,6 @@ const Dashboard = () => {
       setLoading(prev => ({ ...prev, transactions: true }));
       const allTransactions = await transactionsApi.getAll();
       
-      // Filter transactions for the selected month
       const filteredTransactions = allTransactions.filter(transaction => {
         const transactionDate = new Date(transaction.date);
         return (
@@ -81,7 +77,6 @@ const Dashboard = () => {
       
       setTransactions(filteredTransactions);
       
-      // Calculate monthly summary based on filtered transactions
       const monthlySummary = filteredTransactions.reduce(
         (acc, transaction) => {
           if (transaction.type === "income") {
@@ -94,7 +89,6 @@ const Dashboard = () => {
         { income: 0, expenses: 0 }
       );
       
-      // Calculate previous month data to determine trends
       const previousMonthDate = new Date(selectedDate);
       previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
       
@@ -118,7 +112,6 @@ const Dashboard = () => {
         { income: 0, expenses: 0 }
       );
       
-      // Calculate percentage change
       const calculateTrend = (current: number, previous: number): number => {
         if (previous === 0) return current > 0 ? 100 : 0;
         return Math.round(((current - previous) / previous) * 100);
@@ -167,7 +160,6 @@ const Dashboard = () => {
     }
   };
   
-  // Filter transactions based on search term
   const searchedTransactions = transactions.filter(transaction => {
     if (searchTerm.trim() === "") return true;
     
@@ -181,7 +173,6 @@ const Dashboard = () => {
     );
   });
   
-  // Sort by date (newest first) and take first 5
   const recentTransactions = [...searchedTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   ).slice(0, 5);
@@ -216,7 +207,6 @@ const Dashboard = () => {
           value={formatCurrency(financialSummary.totalBalance)}
           icon={<Wallet className="h-5 w-5 text-masareef-primary" />}
           className="border-l-4 border-masareef-primary"
-          loading={loading.summary}
         />
         <StatCard
           title={t('income')}
@@ -224,7 +214,6 @@ const Dashboard = () => {
           icon={<ArrowDown className="h-5 w-5 text-green-600" />}
           trend={monthlyTrends.income}
           className="border-l-4 border-green-500"
-          loading={loading.transactions}
         />
         <StatCard
           title={t('expenses')}
@@ -233,7 +222,6 @@ const Dashboard = () => {
           trend={monthlyTrends.expenses}
           isExpense={true}
           className="border-l-4 border-red-500"
-          loading={loading.transactions}
         />
       </div>
 
@@ -272,7 +260,6 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Transaction Details Dialog */}
       <TransactionDetails
         transaction={viewingTransaction}
         onClose={() => setViewingTransaction(null)}

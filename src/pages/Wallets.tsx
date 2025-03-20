@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Wallet } from "@/types";
@@ -35,7 +34,6 @@ const Wallets = () => {
     color: "#83C5BE",
   });
 
-  // Fetch wallets from API
   useEffect(() => {
     const fetchWallets = async () => {
       try {
@@ -90,7 +88,6 @@ const Wallets = () => {
   };
 
   const handleAddWallet = async () => {
-    // Basic validation
     if (!newWallet.name || !newWallet.type) {
       toast({
         title: t('validation_error'),
@@ -149,8 +146,7 @@ const Wallets = () => {
     }
   };
 
-  // Calculate total balance across all wallets
-  const totalBalance = walletList.reduce((sum, wallet) => sum + wallet.balance, 0);
+  const totalBalance = walletList.reduce((sum, wallet) => sum + Number(wallet.balance), 0);
 
   if (loading) {
     return <div className="p-8 text-center">Loading wallets...</div>;
@@ -283,7 +279,7 @@ const Wallets = () => {
                     </div>
                     <div className="text-right mr-4">
                       <p className="font-bold">
-                        EGP {wallet.balance.toLocaleString()}
+                        {formatCurrency(wallet.balance)}
                       </p>
                     </div>
                   </AccordionTrigger>

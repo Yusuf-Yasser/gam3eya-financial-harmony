@@ -4,6 +4,7 @@ import { Wallet } from "@/types";
 import { Card, CardContent } from "../ui/card";
 import { Progress } from "../ui/progress";
 import { Banknote, CreditCard, PiggyBank, Users } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface WalletListProps {
   wallets: Wallet[];
@@ -44,7 +45,7 @@ export function WalletList({ wallets }: WalletListProps) {
               <span className="text-sm text-muted-foreground">{t(wallet.type)}</span>
             </div>
             <div className="flex justify-between items-baseline mb-2">
-              <span className="text-xl font-bold">EGP {wallet.balance.toLocaleString()}</span>
+              <span className="text-xl font-bold">{formatCurrency(wallet.balance)}</span>
             </div>
             <Progress 
               value={100} 
