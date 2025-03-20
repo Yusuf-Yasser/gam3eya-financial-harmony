@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useCategories } from "@/contexts/CategoryContext";
 import { Transaction, wallets } from "@/data/dummyData";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Paperclip } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { CategoryDialog } from "@/components/categories/CategoryDialog";
 import {
   Form,
   FormControl,
@@ -20,17 +22,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-
-// Separate categories for expense and income
-const expenseCategoryOptions = [
-  "groceries", "transportation", "entertainment", "dining_out", "utilities", 
-  "housing", "healthcare", "clothing", "education", "savings", "other"
-];
-
-const incomeCategoryOptions = [
-  "salary", "freelance", "investments", "gifts", "refunds", "side_hustle", "other"
-];
 
 // Define form schema using zod
 const formSchema = z.object({
@@ -56,6 +47,7 @@ interface TransactionFormProps {
 export function TransactionForm({ isEditing, onSave, editingTransaction, onCancel }: TransactionFormProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { getExpenseCategories, getIncomeCategories } = useCategories();
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   
   // Initialize form with react-hook-form and zod validation
@@ -119,8 +111,8 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
   // Get current category options based on selected transaction type
   const getCategoryOptions = () => {
     return form.watch("type") === "income" 
-      ? incomeCategoryOptions 
-      : expenseCategoryOptions;
+      ? getIncomeCategories() 
+      : getExpenseCategories();
   };
 
   return (
@@ -212,7 +204,10 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('category')}</FormLabel>
+              <div className="flex justify-between items-center">
+                <FormLabel>{t('category')}</FormLabel>
+                <CategoryDialog type={form.watch("type")} variant="outline" />
+              </div>
               <Select 
                 onValueChange={field.onChange}
                 value={field.value}
@@ -224,8 +219,8 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
                 </FormControl>
                 <SelectContent>
                   {getCategoryOptions().map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {t(category)}
+                    <SelectItem key={category.id} value={category.id}>
+                      {t(category.name)}
                     </SelectItem>
                   ))}
                 </SelectContent>

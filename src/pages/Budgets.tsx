@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useCategories } from "@/contexts/CategoryContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, AlertCircle } from "lucide-react";
 import { calculatePercentage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { CategoryDialog } from "@/components/categories/CategoryDialog";
 import {
   Dialog,
   DialogContent,
@@ -57,21 +59,10 @@ const initialBudgets = [
   }
 ];
 
-// Category options for the dropdown
-const categoryOptions = [
-  "groceries", "transportation", "entertainment", "dining_out", "utilities", 
-  "housing", "healthcare", "clothing", "education", "savings", "other"
-];
-
-// Color options for new budget
-const colorOptions = [
-  "#83C5BE", "#E29578", "#006D77", "#FFDDD2", "#EDF6F9", 
-  "#FF6B6B", "#4ECDC4", "#F7FFF7", "#FFE66D", "#6B5CA5"
-];
-
 const Budgets = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { getExpenseCategories } = useCategories();
   const [budgets, setBudgets] = useState(initialBudgets);
   const [open, setOpen] = useState(false);
   const [newBudget, setNewBudget] = useState({
@@ -79,6 +70,9 @@ const Budgets = () => {
     allocated: 0,
     spent: 0,
   });
+
+  // Get expense categories for dropdown
+  const expenseCategories = getExpenseCategories();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -107,7 +101,11 @@ const Budgets = () => {
     }
 
     const remaining = newBudget.allocated - newBudget.spent;
-    const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+    
+    // Find category color if available
+    const categoryObj = expenseCategories.find(c => c.id === newBudget.category);
+    const categoryColor = categoryObj?.color || "#83C5BE";
+    
     const newId = Math.max(...budgets.map(b => b.id)) + 1;
 
     const createdBudget = {
@@ -116,7 +114,7 @@ const Budgets = () => {
       allocated: newBudget.allocated,
       spent: newBudget.spent,
       remaining: remaining,
-      color: randomColor
+      color: categoryColor
     };
 
     setBudgets([...budgets, createdBudget]);
@@ -137,64 +135,67 @@ const Budgets = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('budgets')}</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> {t('add_budget')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('add_new_budget')}</DialogTitle>
-              <DialogDescription>
-                {t('create_budget_to_track_expenses')}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="category">{t('category')}</Label>
-                <Select 
-                  onValueChange={handleCategoryChange}
-                  value={newBudget.category}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('select_category')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {t(category)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <div className="flex space-x-2">
+          <CategoryDialog type="expense" variant="outline" />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" /> {t('add_budget')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t('add_new_budget')}</DialogTitle>
+                <DialogDescription>
+                  {t('create_budget_to_track_expenses')}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="category">{t('category')}</Label>
+                  <Select 
+                    onValueChange={handleCategoryChange}
+                    value={newBudget.category}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('select_category')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {expenseCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {t(category.name)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="allocated">{t('allocated_amount')}</Label>
+                  <Input 
+                    id="allocated" 
+                    name="allocated"
+                    type="number"
+                    value={newBudget.allocated || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="spent">{t('spent_amount')}</Label>
+                  <Input 
+                    id="spent" 
+                    name="spent"
+                    type="number"
+                    value={newBudget.spent || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="allocated">{t('allocated_amount')}</Label>
-                <Input 
-                  id="allocated" 
-                  name="allocated"
-                  type="number"
-                  value={newBudget.allocated || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="spent">{t('spent_amount')}</Label>
-                <Input 
-                  id="spent" 
-                  name="spent"
-                  type="number"
-                  value={newBudget.spent || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddBudget}>{t('add_budget')}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={handleAddBudget}>{t('add_budget')}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Alert className="bg-masareef-light/50 border-masareef-primary">
@@ -209,12 +210,16 @@ const Budgets = () => {
         {budgets.map((budget) => {
           const percentage = calculatePercentage(budget.spent, budget.allocated);
           const isOverBudget = budget.spent > budget.allocated;
+          
+          // Find category to get proper name
+          const categoryObj = expenseCategories.find(c => c.id === budget.category);
+          const categoryName = categoryObj ? categoryObj.name : budget.category;
 
           return (
             <Card key={budget.id} className="overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="flex justify-between items-center">
-                  <span>{t(budget.category)}</span>
+                  <span>{t(categoryName)}</span>
                   <span className={isOverBudget ? "text-red-500" : ""}>
                     {percentage}%
                   </span>
