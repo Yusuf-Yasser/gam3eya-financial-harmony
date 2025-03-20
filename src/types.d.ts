@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -44,4 +45,18 @@ export interface Budget {
   period: 'monthly' | 'weekly' | 'yearly' | 'custom';
   startDate?: string;
   endDate?: string;
+}
+
+export interface Gam3eya {
+  id: string;
+  name: string;
+  totalAmount: number;
+  contributionAmount: number;
+  members: number;
+  startDate: string;
+  endDate: string;
+  currentCycle: number;
+  totalCycles: number;
+  isAdmin: boolean;
+  nextPaymentDate: string;
 }

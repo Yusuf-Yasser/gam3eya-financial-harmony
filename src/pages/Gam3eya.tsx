@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,63 +17,48 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const gam3eyat = [
-  {
-    id: 1,
-    name: "Office Group",
-    totalAmount: 50000,
-    membersCount: 10,
-    monthlyContribution: 5000,
-    startDate: "2023-01-01",
-    endDate: "2023-10-31",
-    myTurn: 5,
-    myTurnDate: "2023-05-01",
-    received: true,
-    active: true
-  },
-  {
-    id: 2,
-    name: "Family Circle",
-    totalAmount: 36000,
-    membersCount: 6,
-    monthlyContribution: 6000,
-    startDate: "2023-03-01",
-    endDate: "2023-08-31",
-    myTurn: 3,
-    myTurnDate: "2023-05-01",
-    received: true,
-    active: true
-  },
-  {
-    id: 3,
-    name: "Friends Group",
-    totalAmount: 24000,
-    membersCount: 8,
-    monthlyContribution: 3000,
-    startDate: "2023-08-01",
-    endDate: "2024-03-31",
-    myTurn: 4,
-    myTurnDate: "2023-11-01",
-    received: false,
-    active: true
-  }
-];
+import { gam3eyaApi } from "@/services/api";
+import { Gam3eya as Gam3eyaType } from "@/types";
 
 const Gam3eya = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [gam3eyaList, setGam3eyaList] = useState(gam3eyat);
+  const [gam3eyaList, setGam3eyaList] = useState<Gam3eyaType[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newGam3eya, setNewGam3eya] = useState({
     name: "",
     totalAmount: 0,
-    membersCount: 0,
-    monthlyContribution: 0,
+    contributionAmount: 0,
+    members: 0,
     startDate: "",
     endDate: "",
+    currentCycle: 1,
+    totalCycles: 0,
+    isAdmin: true,
     myTurn: 1,
   });
+
+  // Fetch gam3eyas from API
+  useEffect(() => {
+    const fetchGam3eyas = async () => {
+      try {
+        const data = await gam3eyaApi.getAll();
+        setGam3eyaList(data);
+      } catch (error) {
+        console.error("Failed to fetch gam3eyas:", error);
+        toast({
+          title: t('error'),
+          description: t('failed_to_fetch_gam3eyas'),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGam3eyas();
+  }, [toast, t]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -82,7 +68,7 @@ const Gam3eya = () => {
     });
   };
 
-  const handleCreateGam3eya = () => {
+  const handleCreateGam3eya = async () => {
     if (!newGam3eya.name || !newGam3eya.startDate || !newGam3eya.endDate) {
       toast({
         title: t('validation_error'),
@@ -92,41 +78,58 @@ const Gam3eya = () => {
       return;
     }
 
-    const newId = Math.max(...gam3eyaList.map(g => g.id)) + 1;
     const myTurnDate = new Date(newGam3eya.startDate);
-    myTurnDate.setMonth(myTurnDate.getMonth() + newGam3eya.myTurn - 1);
+    myTurnDate.setMonth(myTurnDate.getMonth() + (newGam3eya.myTurn as number) - 1);
+    
+    try {
+      // Calculate total cycles from members if not specified
+      const totalCycles = newGam3eya.totalCycles || newGam3eya.members;
+      
+      const createdGam3eya = await gam3eyaApi.create({
+        name: newGam3eya.name,
+        totalAmount: newGam3eya.totalAmount,
+        contributionAmount: newGam3eya.contributionAmount,
+        members: newGam3eya.members,
+        startDate: newGam3eya.startDate,
+        endDate: newGam3eya.endDate,
+        currentCycle: newGam3eya.currentCycle,
+        totalCycles,
+        isAdmin: newGam3eya.isAdmin,
+        nextPaymentDate: myTurnDate.toISOString().split('T')[0]
+      });
 
-    const createdGam3eya = {
-      id: newId,
-      name: newGam3eya.name,
-      totalAmount: newGam3eya.totalAmount,
-      membersCount: newGam3eya.membersCount,
-      monthlyContribution: newGam3eya.monthlyContribution,
-      startDate: newGam3eya.startDate,
-      endDate: newGam3eya.endDate,
-      myTurn: newGam3eya.myTurn,
-      myTurnDate: myTurnDate.toISOString().split('T')[0],
-      received: false,
-      active: true
-    };
+      setGam3eyaList([...gam3eyaList, createdGam3eya]);
+      setOpen(false);
+      setNewGam3eya({
+        name: "",
+        totalAmount: 0,
+        contributionAmount: 0,
+        members: 0,
+        startDate: "",
+        endDate: "",
+        currentCycle: 1,
+        totalCycles: 0,
+        isAdmin: true,
+        myTurn: 1,
+      });
 
-    setGam3eyaList([...gam3eyaList, createdGam3eya]);
-    setOpen(false);
-    setNewGam3eya({
-      name: "",
-      totalAmount: 0,
-      membersCount: 0,
-      monthlyContribution: 0,
-      startDate: "",
-      endDate: "",
-      myTurn: 1,
-    });
-
-    toast({
-      title: t('success'),
-      description: t('gam3eya_created_successfully'),
-    });
+      toast({
+        title: t('success'),
+        description: t('gam3eya_created_successfully'),
+      });
+    } catch (error) {
+      console.error("Failed to create gam3eya:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_create_gam3eya'),
+        variant: "destructive",
+      });
+    }
   };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading gam3eyas...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -167,23 +170,23 @@ const Gam3eya = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="membersCount">{t('members_count')}</Label>
+                  <Label htmlFor="members">{t('members_count')}</Label>
                   <Input 
-                    id="membersCount" 
-                    name="membersCount"
+                    id="members" 
+                    name="members"
                     type="number"
-                    value={newGam3eya.membersCount || ""}
+                    value={newGam3eya.members || ""}
                     onChange={handleInputChange}
                   />
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="monthlyContribution">{t('monthly_contribution')}</Label>
+                <Label htmlFor="contributionAmount">{t('monthly_contribution')}</Label>
                 <Input 
-                  id="monthlyContribution" 
-                  name="monthlyContribution"
+                  id="contributionAmount" 
+                  name="contributionAmount"
                   type="number"
-                  value={newGam3eya.monthlyContribution || ""}
+                  value={newGam3eya.contributionAmount || ""}
                   onChange={handleInputChange}
                 />
               </div>
@@ -229,14 +232,14 @@ const Gam3eya = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {gam3eyaList.map((gam3eya) => (
-          <Card key={gam3eya.id} className={`overflow-hidden ${!gam3eya.active && 'opacity-60'}`}>
+          <Card key={gam3eya.id} className="overflow-hidden">
             <div className="h-2 bg-masareef-primary" />
             <CardHeader className="pb-2">
               <CardTitle className="flex justify-between items-center">
                 <span>{gam3eya.name}</span>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Users className="h-4 w-4 mr-1" />
-                  {gam3eya.membersCount}
+                  {gam3eya.members}
                 </div>
               </CardTitle>
               <CardDescription className="flex items-center">
@@ -255,24 +258,24 @@ const Gam3eya = () => {
                 <div className="flex justify-between items-center text-sm">
                   <div>
                     <p className="text-muted-foreground">{t('monthly_contribution')}</p>
-                    <p className="font-medium">{formatCurrency(gam3eya.monthlyContribution)}</p>
+                    <p className="font-medium">{formatCurrency(gam3eya.contributionAmount)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-muted-foreground">{t('my_turn')}</p>
-                    <p className="font-medium">{t('month')} {gam3eya.myTurn}</p>
+                    <p className="text-muted-foreground">{t('current_cycle')}</p>
+                    <p className="font-medium">{gam3eya.currentCycle} / {gam3eya.totalCycles}</p>
                   </div>
                 </div>
                 <div className="pt-2">
-                  {gam3eya.received ? (
+                  {gam3eya.currentCycle > gam3eya.totalCycles / 2 ? (
                     <div className="flex items-center text-green-600">
                       <ArrowDownCircle className="h-4 w-4 mr-1" />
-                      <span className="text-sm">{t('amount_received')}</span>
+                      <span className="text-sm">{t('halfway_complete')}</span>
                     </div>
                   ) : (
                     <div className="flex items-center text-orange-600">
                       <ArrowUpCircle className="h-4 w-4 mr-1" />
                       <span className="text-sm">
-                        {t('expected')}: {new Date(gam3eya.myTurnDate).toLocaleDateString()}
+                        {t('next_payment')}: {new Date(gam3eya.nextPaymentDate).toLocaleDateString()}
                       </span>
                     </div>
                   )}

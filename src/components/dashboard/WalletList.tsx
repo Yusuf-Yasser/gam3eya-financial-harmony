@@ -1,6 +1,6 @@
 
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Wallet } from "@/data/dummyData";
+import { Wallet } from "@/types";
 import { Card, CardContent } from "../ui/card";
 import { Progress } from "../ui/progress";
 import { Banknote, CreditCard, PiggyBank, Users } from "lucide-react";
@@ -27,6 +27,10 @@ export function WalletList({ wallets }: WalletListProps) {
     }
   };
 
+  if (!wallets || wallets.length === 0) {
+    return <div className="text-center p-4 text-muted-foreground">{t('no_wallets')}</div>;
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {wallets.map((wallet) => (
@@ -45,7 +49,7 @@ export function WalletList({ wallets }: WalletListProps) {
             <Progress 
               value={100} 
               className="h-1.5" 
-              style={{ backgroundColor: wallet.color + '40', '--progress-color': wallet.color } as any}
+              style={{ backgroundColor: wallet.color ? `${wallet.color}40` : '#e5e7eb', '--progress-color': wallet.color } as any}
             />
           </CardContent>
         </Card>

@@ -1,7 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { wallets as initialWallets, Wallet } from "@/data/dummyData";
+import { Wallet } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, CreditCard, Wallet as WalletIcon, Banknote, PiggyBank, Users } from "lucide-react";
@@ -20,11 +20,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { walletsApi } from "@/services/api";
 
 const Wallets = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const [walletList, setWalletList] = useState(initialWallets);
+  const [walletList, setWalletList] = useState<Wallet[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [newWallet, setNewWallet] = useState({
     name: "",
@@ -32,6 +34,27 @@ const Wallets = () => {
     balance: 0,
     color: "#83C5BE",
   });
+
+  // Fetch wallets from API
+  useEffect(() => {
+    const fetchWallets = async () => {
+      try {
+        const data = await walletsApi.getAll();
+        setWalletList(data);
+      } catch (error) {
+        console.error("Failed to fetch wallets:", error);
+        toast({
+          title: t('error'),
+          description: t('failed_to_fetch_wallets'),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWallets();
+  }, [toast, t]);
 
   const walletTypes = ["cash", "bank", "savings", "gam3eya", "custom"];
   const colorOptions = ["#83C5BE", "#E29578", "#006D77", "#FFDDD2", "#4ECDC4", "#FF6B6B"];
@@ -66,7 +89,7 @@ const Wallets = () => {
     });
   };
 
-  const handleAddWallet = () => {
+  const handleAddWallet = async () => {
     // Basic validation
     if (!newWallet.name || !newWallet.type) {
       toast({
@@ -77,39 +100,61 @@ const Wallets = () => {
       return;
     }
 
-    // Generate a string ID with 'w' prefix followed by a number
-    const maxIdNum = walletList.reduce((max, w) => {
-      const idNum = parseInt(w.id.replace('w', ''));
-      return idNum > max ? idNum : max;
-    }, 0);
-    
-    const newId = `w${maxIdNum + 1}`;
-    
-    const createdWallet: Wallet = {
-      id: newId,
-      name: newWallet.name,
-      type: newWallet.type as 'cash' | 'bank' | 'savings' | 'gam3eya' | 'custom',
-      balance: newWallet.balance,
-      color: newWallet.color || colorOptions[Math.floor(Math.random() * colorOptions.length)],
-    };
+    try {
+      const createdWallet = await walletsApi.create({
+        name: newWallet.name,
+        type: newWallet.type as 'cash' | 'bank' | 'savings' | 'gam3eya' | 'custom',
+        balance: newWallet.balance,
+        color: newWallet.color || colorOptions[Math.floor(Math.random() * colorOptions.length)],
+      });
 
-    setWalletList([...walletList, createdWallet]);
-    setOpen(false);
-    setNewWallet({
-      name: "",
-      type: "",
-      balance: 0,
-      color: "#83C5BE",
-    });
+      setWalletList([...walletList, createdWallet]);
+      setOpen(false);
+      setNewWallet({
+        name: "",
+        type: "",
+        balance: 0,
+        color: "#83C5BE",
+      });
 
-    toast({
-      title: t('success'),
-      description: t('wallet_added_successfully'),
-    });
+      toast({
+        title: t('success'),
+        description: t('wallet_added_successfully'),
+      });
+    } catch (error) {
+      console.error("Failed to add wallet:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_add_wallet'),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteWallet = async (id: string) => {
+    try {
+      await walletsApi.delete(id);
+      setWalletList(walletList.filter(w => w.id !== id));
+      toast({
+        title: t('success'),
+        description: t('wallet_deleted_successfully'),
+      });
+    } catch (error) {
+      console.error("Failed to delete wallet:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_delete_wallet'),
+        variant: "destructive",
+      });
+    }
   };
 
   // Calculate total balance across all wallets
   const totalBalance = walletList.reduce((sum, wallet) => sum + wallet.balance, 0);
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading wallets...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -215,64 +260,64 @@ const Wallets = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {walletList.map((wallet) => (
-              <AccordionItem key={wallet.id} value={`wallet-${wallet.id}`}>
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-10 h-10 rounded-full flex items-center justify-center" 
-                      style={{ backgroundColor: `${wallet.color}30` }}
-                    >
-                      {getWalletIcon(wallet.type)}
-                    </div>
-                    <div className="text-left">
-                      <p className="font-medium">{wallet.name}</p>
-                      <p className="text-sm text-muted-foreground">{t(wallet.type)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right mr-4">
-                    <p className="font-bold">
-                      EGP {wallet.balance.toLocaleString()}
-                    </p>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="p-4 space-y-4 bg-gray-50 rounded-md">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">{t('account_number')}</span>
-                      <span className="font-medium">
-                        {wallet.type === 'bank' ? '**** **** **** 4582' : '-'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">{t('last_updated')}</span>
-                      <span className="font-medium">2023-07-15</span>
-                    </div>
-                    <div className="pt-2 flex space-x-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        {t('edit')}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 text-red-500"
-                        onClick={() => {
-                          setWalletList(walletList.filter(w => w.id !== wallet.id));
-                          toast({
-                            title: t('success'),
-                            description: t('wallet_deleted_successfully'),
-                          });
-                        }}
+          {walletList.length === 0 ? (
+            <div className="text-center p-6">
+              <p className="text-muted-foreground">{t('no_wallets_yet')}</p>
+            </div>
+          ) : (
+            <Accordion type="single" collapsible className="w-full">
+              {walletList.map((wallet) => (
+                <AccordionItem key={wallet.id} value={`wallet-${wallet.id}`}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-10 h-10 rounded-full flex items-center justify-center" 
+                        style={{ backgroundColor: `${wallet.color}30` }}
                       >
-                        {t('delete')}
-                      </Button>
+                        {getWalletIcon(wallet.type)}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium">{wallet.name}</p>
+                        <p className="text-sm text-muted-foreground">{t(wallet.type)}</p>
+                      </div>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                    <div className="text-right mr-4">
+                      <p className="font-bold">
+                        EGP {wallet.balance.toLocaleString()}
+                      </p>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="p-4 space-y-4 bg-gray-50 rounded-md">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">{t('account_number')}</span>
+                        <span className="font-medium">
+                          {wallet.type === 'bank' ? '**** **** **** 4582' : '-'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">{t('last_updated')}</span>
+                        <span className="font-medium">2023-07-15</span>
+                      </div>
+                      <div className="pt-2 flex space-x-2">
+                        <Button variant="outline" size="sm" className="flex-1">
+                          {t('edit')}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 text-red-500"
+                          onClick={() => handleDeleteWallet(wallet.id)}
+                        >
+                          {t('delete')}
+                        </Button>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
         </CardContent>
       </Card>
     </div>

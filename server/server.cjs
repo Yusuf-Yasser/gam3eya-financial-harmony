@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db.cjs');
@@ -252,6 +253,97 @@ app.post('/api/budgets', async (req, res) => {
   } catch (error) {
     console.error('Error creating budget:', error);
     res.status(500).json({ error: 'Failed to create budget' });
+  }
+});
+
+// Gam3eyas endpoints
+app.get('/api/gam3eyas', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM gam3eyas');
+    
+    const transformedRows = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      totalAmount: parseFloat(row.total_amount),
+      contributionAmount: parseFloat(row.contribution_amount),
+      members: row.members,
+      startDate: row.start_date.toISOString().split('T')[0],
+      endDate: row.end_date.toISOString().split('T')[0],
+      currentCycle: row.current_cycle,
+      totalCycles: row.total_cycles,
+      isAdmin: !!row.is_admin,
+      nextPaymentDate: row.next_payment_date.toISOString().split('T')[0]
+    }));
+    
+    res.json(transformedRows);
+  } catch (error) {
+    console.error('Error fetching gam3eyas:', error);
+    res.status(500).json({ error: 'Failed to fetch gam3eyas' });
+  }
+});
+
+app.post('/api/gam3eyas', async (req, res) => {
+  try {
+    const { 
+      id, 
+      name, 
+      totalAmount, 
+      contributionAmount, 
+      members, 
+      startDate, 
+      endDate, 
+      currentCycle, 
+      totalCycles, 
+      isAdmin, 
+      nextPaymentDate 
+    } = req.body;
+    
+    await pool.query(
+      'INSERT INTO gam3eyas (id, name, total_amount, contribution_amount, members, start_date, end_date, current_cycle, total_cycles, is_admin, next_payment_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate]
+    );
+    
+    res.status(201).json({ message: 'Gam3eya created successfully' });
+  } catch (error) {
+    console.error('Error creating gam3eya:', error);
+    res.status(500).json({ error: 'Failed to create gam3eya' });
+  }
+});
+
+app.put('/api/gam3eyas/:id', async (req, res) => {
+  try {
+    const { 
+      name, 
+      totalAmount, 
+      contributionAmount, 
+      members, 
+      startDate, 
+      endDate, 
+      currentCycle, 
+      totalCycles, 
+      isAdmin, 
+      nextPaymentDate 
+    } = req.body;
+    
+    await pool.query(
+      'UPDATE gam3eyas SET name = ?, total_amount = ?, contribution_amount = ?, members = ?, start_date = ?, end_date = ?, current_cycle = ?, total_cycles = ?, is_admin = ?, next_payment_date = ? WHERE id = ?',
+      [name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, req.params.id]
+    );
+    
+    res.json({ message: 'Gam3eya updated successfully' });
+  } catch (error) {
+    console.error('Error updating gam3eya:', error);
+    res.status(500).json({ error: 'Failed to update gam3eya' });
+  }
+});
+
+app.delete('/api/gam3eyas/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM gam3eyas WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Gam3eya deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting gam3eya:', error);
+    res.status(500).json({ error: 'Failed to delete gam3eya' });
   }
 });
 

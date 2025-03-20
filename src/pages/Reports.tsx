@@ -1,37 +1,103 @@
 
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { transactions, wallets } from "@/data/dummyData";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { formatCurrency, getCurrentMonth, getPreviousMonths } from "@/lib/utils";
+import { transactionsApi, walletsApi, financialSummaryApi } from "@/services/api";
+import { Transaction, Wallet } from "@/types";
 
 const Reports = () => {
   const { t } = useLanguage();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [financialSummary, setFinancialSummary] = useState({
+    totalBalance: 0,
+    totalIncome: 0,
+    totalExpenses: 0
+  });
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [transactionsData, walletsData, summaryData] = await Promise.all([
+          transactionsApi.getAll(),
+          walletsApi.getAll(),
+          financialSummaryApi.get()
+        ]);
+        
+        setTransactions(transactionsData);
+        setWallets(walletsData);
+        setFinancialSummary(summaryData);
+      } catch (error) {
+        console.error("Failed to fetch data for reports:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Get last 6 months including current month
   const months = [getCurrentMonth(), ...getPreviousMonths(5)].reverse();
 
   // Prepare monthly data
-  const monthlyData = months.map(month => ({
-    name: month,
-    income: Math.random() * 15000 + 5000, // Dummy data
-    expenses: Math.random() * 10000 + 3000 // Dummy data
-  }));
+  const getMonthlyData = () => {
+    // Create a map to hold data for each month
+    const monthlyDataMap = new Map<string, { income: number, expenses: number }>();
+    
+    // Initialize the map with zeros for all months
+    months.forEach(month => {
+      monthlyDataMap.set(month, { income: 0, expenses: 0 });
+    });
+    
+    // Fill in the data from transactions
+    transactions.forEach(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const monthYear = `${transactionDate.toLocaleString('default', { month: 'short' })}-${transactionDate.getFullYear()}`;
+      
+      if (monthlyDataMap.has(monthYear)) {
+        const currentData = monthlyDataMap.get(monthYear)!;
+        if (transaction.type === 'income') {
+          currentData.income += transaction.amount;
+        } else {
+          currentData.expenses += transaction.amount;
+        }
+        monthlyDataMap.set(monthYear, currentData);
+      }
+    });
+    
+    // Convert map to array for chart
+    return Array.from(monthlyDataMap).map(([name, data]) => ({
+      name,
+      income: data.income,
+      expenses: data.expenses
+    }));
+  };
+
+  const monthlyData = getMonthlyData();
 
   // Prepare expense categories data
   const expensesByCategory = transactions
     .filter(t => t.type === 'expense')
     .reduce((acc, curr) => {
-      acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+      acc[curr.categoryName || curr.category] = (acc[curr.categoryName || curr.category] || 0) + curr.amount;
       return acc;
     }, {} as Record<string, number>);
 
   const pieData = Object.entries(expensesByCategory).map(([category, amount]) => ({
-    name: t(category),
+    name: category,
     value: amount
   }));
 
   const COLORS = ['#006D77', '#83C5BE', '#E29578', '#FFDDD2', '#EDF6F9'];
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading reports data...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -110,15 +176,23 @@ const Reports = () => {
                 </div>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData}>
+                    <BarChart data={transactions
+                      .filter(t => t.walletId === wallet.id)
+                      .slice(0, 10)
+                      .map(t => ({
+                        name: new Date(t.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                        amount: t.amount,
+                        type: t.type
+                      }))
+                    }>
                       <XAxis dataKey="name" />
                       <YAxis />
                       <Tooltip 
                         formatter={(value: number) => formatCurrency(value)}
                       />
                       <Bar 
-                        dataKey="income" 
-                        fill={wallet.color} 
+                        dataKey="amount" 
+                        fill={wallet.color || '#83C5BE'} 
                         name={t('transactions')} 
                       />
                     </BarChart>
