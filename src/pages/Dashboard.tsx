@@ -13,6 +13,8 @@ import { formatCurrency } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { TransactionDetails } from "@/components/transactions/TransactionDetails";
 import { Transaction } from "@/data/dummyData";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 const Dashboard = () => {
   const { t } = useLanguage();
@@ -20,6 +22,7 @@ const Dashboard = () => {
   const [selectedDate, setSelectedDate] = useState(new Date(2025, 2, 15)); // March is month 2 (0-indexed)
   const [monthlyTrends, setMonthlyTrends] = useState({ income: 0, expenses: 0 });
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // Filter transactions for the selected month
   const filteredTransactions = transactions.filter(transaction => {
@@ -30,8 +33,22 @@ const Dashboard = () => {
     );
   });
   
+  // Filter transactions based on search term
+  const searchedTransactions = filteredTransactions.filter(transaction => {
+    if (searchTerm.trim() === "") return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      transaction.description.toLowerCase().includes(searchLower) ||
+      transaction.category.toLowerCase().includes(searchLower) ||
+      transaction.amount.toString().includes(searchLower) ||
+      new Date(transaction.date).toLocaleDateString().includes(searchLower) ||
+      t(transaction.category).toLowerCase().includes(searchLower)
+    );
+  });
+  
   // Sort by date (newest first) and take first 5
-  const recentTransactions = [...filteredTransactions].sort(
+  const recentTransactions = [...searchedTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   ).slice(0, 5);
   
@@ -105,6 +122,16 @@ const Dashboard = () => {
         />
       </div>
 
+      <div className="relative w-full mb-4">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder={t('search_transactions')}
+          className="pl-8"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title={t('total_balance')}
@@ -124,6 +151,7 @@ const Dashboard = () => {
           value={formatCurrency(adjustedSummary.totalExpenses)}
           icon={<ArrowUp className="h-5 w-5 text-red-600" />}
           trend={monthlyTrends.expenses}
+          isExpense={true}
           className="border-l-4 border-red-500"
         />
       </div>
@@ -156,7 +184,7 @@ const Dashboard = () => {
           <CardContent>
             <TransactionList 
               transactions={recentTransactions} 
-              emptyMessage={t('no_transactions_for_month')}
+              emptyMessage={searchTerm ? t('no_matching_transactions') : t('no_transactions_for_month')}
               onView={handleViewTransaction}
             />
           </CardContent>

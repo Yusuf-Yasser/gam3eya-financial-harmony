@@ -6,7 +6,7 @@ import { LanguageToggle } from './LanguageToggle';
 import { Bell, Menu, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -18,6 +18,8 @@ export function Layout({ children }: LayoutProps) {
   const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   // Set RTL direction based on language
   document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -28,6 +30,14 @@ export function Layout({ children }: LayoutProps) {
   } else {
     document.documentElement.classList.remove('rtl');
   }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/transactions?search=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <div className={`min-h-screen flex ${language === 'ar' ? 'rtl' : 'ltr'}`}>
@@ -51,18 +61,18 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex flex-col flex-1">
         <header className="bg-white border-b h-16 px-4 sm:px-6 flex items-center justify-between">
           {isMobile && (
-            <div className="w-8">
-              {/* Placeholder for proper alignment */}
-            </div>
+            <div className="w-8"></div>
           )}
           
-          <div className="relative w-full max-w-xs sm:w-64 mx-auto sm:mx-0">
+          <form onSubmit={handleSearch} className="relative w-full max-w-xs sm:w-64 mx-auto sm:mx-0">
             <Search className={`absolute ${language === 'ar' ? 'right-2' : 'left-2'} top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4`} />
             <Input
               placeholder={t('search')}
               className={`${language === 'ar' ? 'pr-8' : 'pl-8'} h-9 w-full`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
+          </form>
           
           <div className="flex items-center space-x-2 sm:space-x-4 rtl:space-x-reverse">
             <Button variant="ghost" size="icon" className="text-muted-foreground" asChild>

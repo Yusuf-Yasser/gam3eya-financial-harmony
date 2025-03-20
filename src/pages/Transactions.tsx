@@ -1,5 +1,4 @@
-
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TransactionList } from "@/components/dashboard/TransactionList";
 import { transactions as initialTransactions } from "@/data/dummyData";
@@ -27,15 +26,13 @@ import { TransactionFilters } from "@/components/transactions/TransactionFilters
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { FilterOptions } from "@/components/transactions/AdvancedTransactionFilters";
 import { TransactionDetails } from "@/components/transactions/TransactionDetails";
+import { useLocation, useSearchParams } from "react-router-dom";
 
-// Helper function to get highest amount for the slider max value
 const getMaxAmount = (transactions: Transaction[]): number => {
   const maxAmount = Math.max(...transactions.map(t => t.amount));
-  // Round up to the nearest 1000
   return Math.ceil(maxAmount / 1000) * 1000;
 };
 
-// Helper function to get all unique categories
 const getUniqueCategories = (transactions: Transaction[]): string[] => {
   return Array.from(new Set(transactions.map(t => t.category)));
 };
@@ -43,6 +40,8 @@ const getUniqueCategories = (transactions: Transaction[]): string[] => {
 const Transactions = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [transactions, setTransactions] = useState(initialTransactions);
@@ -51,11 +50,9 @@ const Transactions = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   
-  // Calculate max amount and unique categories
   const maxAmount = useMemo(() => getMaxAmount(transactions), [transactions]);
   const categories = useMemo(() => getUniqueCategories(transactions), [transactions]);
   
-  // Filter options state
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     dateRange: { from: undefined, to: undefined },
     categories: [],
@@ -63,7 +60,13 @@ const Transactions = () => {
     types: []
   });
 
-  // Check if there are active filters
+  useEffect(() => {
+    const queryParam = searchParams.get('search');
+    if (queryParam) {
+      setSearchTerm(queryParam);
+    }
+  }, [searchParams]);
+
   const hasActiveFilters = useMemo(() => {
     return (
       !!filterOptions.dateRange.from || 
@@ -71,9 +74,10 @@ const Transactions = () => {
       filterOptions.categories.length > 0 || 
       filterOptions.types.length > 0 ||
       filterOptions.amountRange.min > 0 || 
-      filterOptions.amountRange.max < maxAmount
+      filterOptions.amountRange.max < maxAmount ||
+      searchTerm.trim() !== ""
     );
-  }, [filterOptions, maxAmount]);
+  }, [filterOptions, maxAmount, searchTerm]);
   
   const itemsPerPage = 10;
 
@@ -108,7 +112,6 @@ const Transactions = () => {
     setIsEditing(true);
     setEditingTransaction(transaction);
     setOpen(true);
-    // If we were viewing this transaction, close the details view
     if (viewingTransaction?.id === transaction.id) {
       setViewingTransaction(null);
     }
@@ -123,18 +126,29 @@ const Transactions = () => {
     setViewingTransaction(transaction);
   };
 
-  // Filter transactions based on all criteria
+  const handleSearchChange = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+    
+    if (term) {
+      searchParams.set('search', term);
+    } else {
+      searchParams.delete('search');
+    }
+    setSearchParams(searchParams);
+  };
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(transaction => {
-      // Text search filter
       const matchesSearch = 
         searchTerm === "" || 
         transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t(transaction.category).toLowerCase().includes(searchTerm.toLowerCase());
+        t(transaction.category).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.amount.toString().includes(searchTerm) ||
+        new Date(transaction.date).toLocaleDateString().includes(searchTerm);
 
       if (!matchesSearch) return false;
 
-      // Date range filter
       const transactionDate = new Date(transaction.date);
       const matchesFromDate = !filterOptions.dateRange.from || 
         transactionDate >= filterOptions.dateRange.from;
@@ -143,21 +157,18 @@ const Transactions = () => {
 
       if (!matchesFromDate || !matchesToDate) return false;
 
-      // Category filter
       const matchesCategory = 
         filterOptions.categories.length === 0 || 
         filterOptions.categories.includes(transaction.category);
 
       if (!matchesCategory) return false;
 
-      // Type filter
       const matchesType = 
         filterOptions.types.length === 0 || 
         filterOptions.types.includes(transaction.type);
 
       if (!matchesType) return false;
 
-      // Amount range filter
       const matchesAmount = 
         transaction.amount >= filterOptions.amountRange.min && 
         transaction.amount <= filterOptions.amountRange.max;
@@ -166,7 +177,6 @@ const Transactions = () => {
     });
   }, [transactions, searchTerm, filterOptions, t]);
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentTransactions = filteredTransactions.slice(
@@ -174,7 +184,6 @@ const Transactions = () => {
     indexOfLastItem
   );
 
-  // Reset to first page when filters change
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilterOptions(newFilters);
     setCurrentPage(1);
@@ -217,7 +226,7 @@ const Transactions = () => {
           </CardDescription>
           <TransactionFilters 
             searchTerm={searchTerm} 
-            onSearchChange={setSearchTerm}
+            onSearchChange={handleSearchChange}
             filterOptions={filterOptions}
             onFilterChange={handleFilterChange}
             categories={categories}
@@ -266,7 +275,6 @@ const Transactions = () => {
         </CardContent>
       </Card>
 
-      {/* Transaction Details Dialog */}
       <TransactionDetails
         transaction={viewingTransaction}
         onClose={() => setViewingTransaction(null)}
