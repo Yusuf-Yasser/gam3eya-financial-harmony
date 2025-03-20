@@ -55,7 +55,7 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
-      amount: 0,
+      amount: undefined, // Changed from 0 to undefined to avoid the 0 being displayed initially
       date: new Date().toISOString().split('T')[0],
       category: "",
       type: "expense",
@@ -174,8 +174,14 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
                 <FormControl>
                   <Input 
                     type="number" 
+                    placeholder="0"
                     {...field} 
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    value={field.value === undefined ? "" : field.value}
+                    onChange={(e) => {
+                      // Only set the value if there's something in the input
+                      const value = e.target.value;
+                      field.onChange(value === "" ? undefined : parseFloat(value));
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
