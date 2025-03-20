@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type LanguageContextType = {
@@ -245,7 +244,6 @@ const translations = {
     no_transactions_for_month: 'لا توجد معاملات لهذا الشهر',
     transactions: 'المعاملات',
     budgets: 'الميزانيات',
-    gam3eya: 'جمعية',
     reports: 'التقارير',
     profile_settings: 'إعدادات الملف الشخصي',
     full_name: 'الاسم الكامل',
@@ -311,8 +309,6 @@ const translations = {
     wallet_deleted_successfully: 'تم حذف المحفظة بنجاح',
     cash: 'نقدي',
     bank: 'بنك',
-    savings: 'مدخرات',
-    gam3eya: 'جمعية',
     custom: 'مخصص',
     start_date: 'تاريخ البدء',
     end_date: 'تاريخ الانتهاء',
@@ -328,8 +324,6 @@ const translations = {
     healthcare: 'رعاية صحية',
     clothing: 'ملابس',
     education: 'تعليم',
-    savings: 'مدخرات',
-    other: 'أخرى',
     salary: 'راتب',
     freelance: 'عمل حر',
     investments: 'استثمارات',
