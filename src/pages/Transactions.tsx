@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TransactionList } from "@/components/dashboard/TransactionList";
-import { transactions as initialTransactions } from "@/data/dummyData";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { 
@@ -20,17 +19,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Transaction } from "@/data/dummyData";
+import { Transaction } from "@/types";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { TransactionPagination } from "@/components/transactions/TransactionPagination";
 import { FilterOptions } from "@/components/transactions/AdvancedTransactionFilters";
 import { TransactionDetails } from "@/components/transactions/TransactionDetails";
 import { useLocation, useSearchParams } from "react-router-dom";
+import { transactionsApi } from "@/services/api";
 
 const getMaxAmount = (transactions: Transaction[]): number => {
-  const maxAmount = Math.max(...transactions.map(t => t.amount));
-  return Math.ceil(maxAmount / 1000) * 1000;
+  const maxAmount = Math.max(...transactions.map(t => t.amount), 0);
+  return Math.ceil(maxAmount / 1000) * 1000 || 10000; // Default to 10000 if no transactions
 };
 
 const getUniqueCategories = (transactions: Transaction[]): string[] => {
@@ -44,11 +44,34 @@ const Transactions = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
+  
+  // Fetch transactions on component mount
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+  
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      const data = await transactionsApi.getAll();
+      setTransactions(data);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_load_transactions'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const maxAmount = useMemo(() => getMaxAmount(transactions), [transactions]);
   const categories = useMemo(() => getUniqueCategories(transactions), [transactions]);
@@ -59,6 +82,14 @@ const Transactions = () => {
     amountRange: { min: 0, max: maxAmount },
     types: []
   });
+  
+  // Update filter max amount when transactions change
+  useEffect(() => {
+    setFilterOptions(prev => ({
+      ...prev,
+      amountRange: { ...prev.amountRange, max: maxAmount }
+    }));
+  }, [maxAmount]);
 
   useEffect(() => {
     const queryParam = searchParams.get('search');
@@ -81,26 +112,36 @@ const Transactions = () => {
   
   const itemsPerPage = 10;
 
-  const handleAddOrUpdateTransaction = (transaction: Transaction) => {
-    if (isEditing) {
-      const updatedTransactions = transactions.map(t => 
-        t.id === transaction.id ? transaction : t
-      );
-      setTransactions(updatedTransactions);
+  const handleAddOrUpdateTransaction = async (transaction: Transaction) => {
+    try {
+      if (isEditing) {
+        await transactionsApi.update(transaction);
+        const updatedTransactions = transactions.map(t => 
+          t.id === transaction.id ? transaction : t
+        );
+        setTransactions(updatedTransactions);
+        toast({
+          title: t('success'),
+          description: t('transaction_updated_successfully'),
+        });
+      } else {
+        const newTransaction = await transactionsApi.create(transaction);
+        setTransactions([newTransaction, ...transactions]);
+        toast({
+          title: t('success'),
+          description: t('transaction_added_successfully'),
+        });
+      }
+      setOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error("Error saving transaction:", error);
       toast({
-        title: t('success'),
-        description: t('transaction_updated_successfully'),
-      });
-    } else {
-      setTransactions([transaction, ...transactions]);
-      toast({
-        title: t('success'),
-        description: t('transaction_added_successfully'),
+        title: t('error'),
+        description: isEditing ? t('failed_to_update_transaction') : t('failed_to_add_transaction'),
+        variant: 'destructive',
       });
     }
-
-    setOpen(false);
-    resetForm();
   };
 
   const resetForm = () => {
@@ -143,7 +184,7 @@ const Transactions = () => {
       const matchesSearch = 
         searchTerm === "" || 
         transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t(transaction.category).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t(transaction.categoryName || transaction.category).toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.amount.toString().includes(searchTerm) ||
         new Date(transaction.date).toLocaleDateString().includes(searchTerm);
 
@@ -235,7 +276,11 @@ const Transactions = () => {
           />
         </CardHeader>
         <CardContent>
-          {currentTransactions.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">{t('loading')}...</p>
+            </div>
+          ) : currentTransactions.length > 0 ? (
             <>
               <TransactionList 
                 transactions={currentTransactions} 

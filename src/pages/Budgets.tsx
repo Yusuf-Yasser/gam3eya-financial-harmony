@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCategories } from "@/contexts/CategoryContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,54 +21,67 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Budget } from "@/types";
+import { budgetsApi } from "@/services/api";
 
-// Dummy data for budgets
-const initialBudgets = [
-  {
-    id: 1,
-    category: "groceries",
-    allocated: 2000,
-    spent: 1250,
-    remaining: 750,
-    color: "#83C5BE"
-  },
-  {
-    id: 2,
-    category: "transportation",
-    allocated: 1000,
-    spent: 700,
-    remaining: 300,
-    color: "#E29578"
-  },
-  {
-    id: 3,
-    category: "entertainment",
-    allocated: 800,
-    spent: 850,
-    remaining: -50,
-    color: "#006D77"
-  },
-  {
-    id: 4,
-    category: "dining_out",
-    allocated: 1200,
-    spent: 900,
-    remaining: 300,
-    color: "#FFDDD2"
-  }
-];
+interface DisplayBudget extends Budget {
+  color: string;
+  remaining: number;
+  percentage: number;
+  isOverBudget: boolean;
+}
 
 const Budgets = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const { getExpenseCategories } = useCategories();
-  const [budgets, setBudgets] = useState(initialBudgets);
+  const [budgets, setBudgets] = useState<DisplayBudget[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [newBudget, setNewBudget] = useState({
     category: "",
-    allocated: 0,
+    amount: 0,
     spent: 0,
   });
+
+  // Fetch budgets on component mount
+  useEffect(() => {
+    fetchBudgets();
+  }, []);
+  
+  const fetchBudgets = async () => {
+    try {
+      setLoading(true);
+      const data = await budgetsApi.getAll();
+      
+      // Transform data for display
+      const expenseCategories = getExpenseCategories();
+      const transformedBudgets: DisplayBudget[] = data.map(budget => {
+        const categoryObj = expenseCategories.find(c => c.id === budget.category);
+        const remaining = budget.amount - budget.spent;
+        const percentage = calculatePercentage(budget.spent, budget.amount);
+        
+        return {
+          ...budget,
+          color: categoryObj?.color || "#83C5BE",
+          remaining,
+          percentage,
+          isOverBudget: budget.spent > budget.amount
+        };
+      });
+      
+      setBudgets(transformedBudgets);
+    } catch (error) {
+      console.error("Error fetching budgets:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_load_budgets'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get expense categories for dropdown
   const expenseCategories = getExpenseCategories();
@@ -89,9 +101,9 @@ const Budgets = () => {
     });
   };
 
-  const handleAddBudget = () => {
+  const handleAddBudget = async () => {
     // Basic validation
-    if (!newBudget.category || !newBudget.allocated) {
+    if (!newBudget.category || !newBudget.amount) {
       toast({
         title: t('validation_error'),
         description: t('please_fill_all_required_fields'),
@@ -100,35 +112,51 @@ const Budgets = () => {
       return;
     }
 
-    const remaining = newBudget.allocated - newBudget.spent;
-    
-    // Find category color if available
-    const categoryObj = expenseCategories.find(c => c.id === newBudget.category);
-    const categoryColor = categoryObj?.color || "#83C5BE";
-    
-    const newId = Math.max(...budgets.map(b => b.id)) + 1;
+    try {
+      const budgetToAdd = {
+        category: newBudget.category,
+        amount: newBudget.amount,
+        spent: newBudget.spent,
+        period: 'monthly' as const,
+      };
+      
+      const createdBudget = await budgetsApi.create(budgetToAdd);
+      
+      // Find category color if available
+      const categoryObj = expenseCategories.find(c => c.id === newBudget.category);
+      const categoryColor = categoryObj?.color || "#83C5BE";
+      
+      const remaining = newBudget.amount - newBudget.spent;
+      const percentage = calculatePercentage(newBudget.spent, newBudget.amount);
+      
+      const displayBudget: DisplayBudget = {
+        ...createdBudget,
+        color: categoryColor,
+        remaining,
+        percentage,
+        isOverBudget: newBudget.spent > newBudget.amount
+      };
+      
+      setBudgets([...budgets, displayBudget]);
+      setOpen(false);
+      setNewBudget({
+        category: "",
+        amount: 0,
+        spent: 0,
+      });
 
-    const createdBudget = {
-      id: newId,
-      category: newBudget.category,
-      allocated: newBudget.allocated,
-      spent: newBudget.spent,
-      remaining: remaining,
-      color: categoryColor
-    };
-
-    setBudgets([...budgets, createdBudget]);
-    setOpen(false);
-    setNewBudget({
-      category: "",
-      allocated: 0,
-      spent: 0,
-    });
-
-    toast({
-      title: t('success'),
-      description: t('budget_added_successfully'),
-    });
+      toast({
+        title: t('success'),
+        description: t('budget_added_successfully'),
+      });
+    } catch (error) {
+      console.error("Error adding budget:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_add_budget'),
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -172,10 +200,10 @@ const Budgets = () => {
                 <div className="grid gap-2">
                   <Label htmlFor="allocated">{t('allocated_amount')}</Label>
                   <Input 
-                    id="allocated" 
-                    name="allocated"
+                    id="amount" 
+                    name="amount"
                     type="number"
-                    value={newBudget.allocated || ""}
+                    value={newBudget.amount || ""}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -206,59 +234,68 @@ const Budgets = () => {
         </AlertDescription>
       </Alert>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {budgets.map((budget) => {
-          const percentage = calculatePercentage(budget.spent, budget.allocated);
-          const isOverBudget = budget.spent > budget.allocated;
-          
-          // Find category to get proper name
-          const categoryObj = expenseCategories.find(c => c.id === budget.category);
-          const categoryName = categoryObj ? categoryObj.name : budget.category;
+      {loading ? (
+        <div className="text-center py-10">
+          <p className="text-muted-foreground">{t('loading')}...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {budgets.length > 0 ? (
+            budgets.map((budget) => {
+              // Find category to get proper name
+              const categoryObj = expenseCategories.find(c => c.id === budget.category);
+              const categoryName = categoryObj ? categoryObj.name : budget.category;
 
-          return (
-            <Card key={budget.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex justify-between items-center">
-                  <span>{t(categoryName)}</span>
-                  <span className={isOverBudget ? "text-red-500" : ""}>
-                    {percentage}%
-                  </span>
-                </CardTitle>
-                <CardDescription>
-                  {t('monthly_budget')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Progress 
-                  value={Math.min(percentage, 100)} 
-                  className="h-2 mb-4"
-                  style={{ 
-                    '--progress-color': isOverBudget ? '#f87171' : budget.color
-                  } as any}
-                />
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('allocated')}</p>
-                    <p className="font-bold">EGP {budget.allocated.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('spent')}</p>
-                    <p className={`font-bold ${isOverBudget ? "text-red-500" : ""}`}>
-                      EGP {budget.spent.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('remaining')}</p>
-                    <p className={`font-bold ${isOverBudget ? "text-red-500" : ""}`}>
-                      EGP {budget.remaining.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              return (
+                <Card key={budget.id} className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex justify-between items-center">
+                      <span>{t(categoryName)}</span>
+                      <span className={budget.isOverBudget ? "text-red-500" : ""}>
+                        {budget.percentage}%
+                      </span>
+                    </CardTitle>
+                    <CardDescription>
+                      {t('monthly_budget')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Progress 
+                      value={Math.min(budget.percentage, 100)} 
+                      className="h-2 mb-4"
+                      style={{ 
+                        '--progress-color': budget.isOverBudget ? '#f87171' : budget.color
+                      } as any}
+                    />
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm text-muted-foreground">{t('allocated')}</p>
+                        <p className="font-bold">EGP {budget.amount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">{t('spent')}</p>
+                        <p className={`font-bold ${budget.isOverBudget ? "text-red-500" : ""}`}>
+                          EGP {budget.spent.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">{t('remaining')}</p>
+                        <p className={`font-bold ${budget.isOverBudget ? "text-red-500" : ""}`}>
+                          EGP {budget.remaining.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <div className="col-span-2 text-center py-10">
+              <p className="text-muted-foreground">{t('no_budgets_found')}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

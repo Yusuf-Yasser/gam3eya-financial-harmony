@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCategories } from "@/contexts/CategoryContext";
-import { Transaction, wallets } from "@/data/dummyData";
+import { Transaction } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Paperclip } from "lucide-react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { CategoryDialog } from "@/components/categories/CategoryDialog";
+import { walletsApi } from "@/services/api";
+import { Wallet } from "@/types";
 import {
   Form,
   FormControl,
@@ -49,6 +50,30 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
   const { toast } = useToast();
   const { getExpenseCategories, getIncomeCategories } = useCategories();
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch wallets on component mount
+  useEffect(() => {
+    fetchWallets();
+  }, []);
+  
+  const fetchWallets = async () => {
+    try {
+      setLoading(true);
+      const data = await walletsApi.getAll();
+      setWallets(data);
+    } catch (error) {
+      console.error("Error fetching wallets:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_load_wallets'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Initialize form with react-hook-form and zod validation
   const form = useForm<FormValues>({
@@ -59,7 +84,7 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
       date: new Date().toISOString().split('T')[0],
       category: "",
       type: "expense",
-      walletId: wallets.length > 0 ? wallets[0].id : "",
+      walletId: "",
       receiptUrl: undefined
     }
   });
@@ -78,6 +103,13 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
       setReceiptUrl(editingTransaction.receiptUrl);
     }
   }, [isEditing, editingTransaction, form]);
+
+  // Update wallet selection when wallets are loaded
+  useEffect(() => {
+    if (wallets.length > 0 && !form.getValues('walletId')) {
+      form.setValue('walletId', wallets[0].id);
+    }
+  }, [wallets, form]);
 
   // Handle file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,6 +146,10 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
       ? getIncomeCategories() 
       : getExpenseCategories();
   };
+
+  if (loading) {
+    return <div className="p-4 text-center">{t('loading')}...</div>;
+  }
 
   return (
     <Form {...form}>

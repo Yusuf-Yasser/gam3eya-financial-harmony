@@ -1,40 +1,174 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TransactionList } from "@/components/dashboard/TransactionList";
 import { WalletList } from "@/components/dashboard/WalletList";
 import { MonthNavigation } from "@/components/dashboard/MonthNavigation";
-import { transactions, wallets, financialSummary } from "@/data/dummyData";
 import { ArrowDown, ArrowUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { TransactionDetails } from "@/components/transactions/TransactionDetails";
-import { Transaction } from "@/data/dummyData";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { Transaction, FinancialSummary } from "@/types";
+import { transactionsApi, walletsApi, financialSummaryApi } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const { t } = useLanguage();
-  // Set default date to March 2025
-  const [selectedDate, setSelectedDate] = useState(new Date(2025, 2, 15)); // March is month 2 (0-indexed)
+  const { toast } = useToast();
+  // Set default date to current month
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthlyTrends, setMonthlyTrends] = useState({ income: 0, expenses: 0 });
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Filter transactions for the selected month
-  const filteredTransactions = transactions.filter(transaction => {
-    const transactionDate = new Date(transaction.date);
-    return (
-      transactionDate.getMonth() === selectedDate.getMonth() &&
-      transactionDate.getFullYear() === selectedDate.getFullYear()
-    );
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [wallets, setWallets] = useState([]);
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary>({
+    totalBalance: 0,
+    totalIncome: 0,
+    totalExpenses: 0
+  });
+  const [loading, setLoading] = useState({
+    transactions: true,
+    wallets: true,
+    summary: true
   });
   
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchWallets();
+    fetchFinancialSummary();
+  }, []);
+  
+  // Fetch transactions when selected date changes
+  useEffect(() => {
+    fetchTransactions();
+  }, [selectedDate]);
+  
+  const fetchWallets = async () => {
+    try {
+      setLoading(prev => ({ ...prev, wallets: true }));
+      const data = await walletsApi.getAll();
+      setWallets(data);
+    } catch (error) {
+      console.error("Error fetching wallets:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_load_wallets'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, wallets: false }));
+    }
+  };
+  
+  const fetchTransactions = async () => {
+    try {
+      setLoading(prev => ({ ...prev, transactions: true }));
+      const allTransactions = await transactionsApi.getAll();
+      
+      // Filter transactions for the selected month
+      const filteredTransactions = allTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return (
+          transactionDate.getMonth() === selectedDate.getMonth() &&
+          transactionDate.getFullYear() === selectedDate.getFullYear()
+        );
+      });
+      
+      setTransactions(filteredTransactions);
+      
+      // Calculate monthly summary based on filtered transactions
+      const monthlySummary = filteredTransactions.reduce(
+        (acc, transaction) => {
+          if (transaction.type === "income") {
+            acc.income += transaction.amount;
+          } else {
+            acc.expenses += transaction.amount;
+          }
+          return acc;
+        },
+        { income: 0, expenses: 0 }
+      );
+      
+      // Calculate previous month data to determine trends
+      const previousMonthDate = new Date(selectedDate);
+      previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+      
+      const previousMonthTransactions = allTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return (
+          transactionDate.getMonth() === previousMonthDate.getMonth() &&
+          transactionDate.getFullYear() === previousMonthDate.getFullYear()
+        );
+      });
+      
+      const previousMonthSummary = previousMonthTransactions.reduce(
+        (acc, transaction) => {
+          if (transaction.type === "income") {
+            acc.income += transaction.amount;
+          } else {
+            acc.expenses += transaction.amount;
+          }
+          return acc;
+        },
+        { income: 0, expenses: 0 }
+      );
+      
+      // Calculate percentage change
+      const calculateTrend = (current: number, previous: number): number => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return Math.round(((current - previous) / previous) * 100);
+      };
+      
+      setMonthlyTrends({
+        income: calculateTrend(monthlySummary.income, previousMonthSummary.income),
+        expenses: calculateTrend(monthlySummary.expenses, previousMonthSummary.expenses)
+      });
+      
+      setFinancialSummary(prev => ({
+        ...prev,
+        totalIncome: monthlySummary.income || 0,
+        totalExpenses: monthlySummary.expenses || 0
+      }));
+      
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_load_transactions'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, transactions: false }));
+    }
+  };
+  
+  const fetchFinancialSummary = async () => {
+    try {
+      setLoading(prev => ({ ...prev, summary: true }));
+      const data = await financialSummaryApi.get();
+      setFinancialSummary(prev => ({
+        ...prev,
+        totalBalance: data.totalBalance
+      }));
+    } catch (error) {
+      console.error("Error fetching financial summary:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_load_financial_summary'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, summary: false }));
+    }
+  };
+  
   // Filter transactions based on search term
-  const searchedTransactions = filteredTransactions.filter(transaction => {
+  const searchedTransactions = transactions.filter(transaction => {
     if (searchTerm.trim() === "") return true;
     
     const searchLower = searchTerm.toLowerCase();
@@ -43,7 +177,7 @@ const Dashboard = () => {
       transaction.category.toLowerCase().includes(searchLower) ||
       transaction.amount.toString().includes(searchLower) ||
       new Date(transaction.date).toLocaleDateString().includes(searchLower) ||
-      t(transaction.category).toLowerCase().includes(searchLower)
+      t(transaction.categoryName || transaction.category).toLowerCase().includes(searchLower)
     );
   });
   
@@ -51,62 +185,6 @@ const Dashboard = () => {
   const recentTransactions = [...searchedTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   ).slice(0, 5);
-  
-  // Calculate monthly summary based on filtered transactions
-  const monthlySummary = filteredTransactions.reduce(
-    (acc, transaction) => {
-      if (transaction.type === "income") {
-        acc.income += transaction.amount;
-      } else {
-        acc.expenses += transaction.amount;
-      }
-      return acc;
-    },
-    { income: 0, expenses: 0 }
-  );
-
-  // Calculate previous month data to determine trends
-  useEffect(() => {
-    const previousMonthDate = new Date(selectedDate);
-    previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
-    
-    const previousMonthTransactions = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      return (
-        transactionDate.getMonth() === previousMonthDate.getMonth() &&
-        transactionDate.getFullYear() === previousMonthDate.getFullYear()
-      );
-    });
-    
-    const previousMonthSummary = previousMonthTransactions.reduce(
-      (acc, transaction) => {
-        if (transaction.type === "income") {
-          acc.income += transaction.amount;
-        } else {
-          acc.expenses += transaction.amount;
-        }
-        return acc;
-      },
-      { income: 0, expenses: 0 }
-    );
-    
-    // Calculate percentage change
-    const calculateTrend = (current: number, previous: number): number => {
-      if (previous === 0) return current > 0 ? 100 : 0;
-      return Math.round(((current - previous) / previous) * 100);
-    };
-    
-    setMonthlyTrends({
-      income: calculateTrend(monthlySummary.income, previousMonthSummary.income),
-      expenses: calculateTrend(monthlySummary.expenses, previousMonthSummary.expenses)
-    });
-  }, [selectedDate, monthlySummary]);
-  
-  const adjustedSummary = {
-    totalBalance: financialSummary.totalBalance, // Keep total balance constant
-    totalIncome: monthlySummary.income || 0,
-    totalExpenses: monthlySummary.expenses || 0
-  };
 
   const handleViewTransaction = (transaction: Transaction) => {
     setViewingTransaction(transaction);
@@ -135,24 +213,27 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title={t('total_balance')}
-          value={formatCurrency(adjustedSummary.totalBalance)}
+          value={formatCurrency(financialSummary.totalBalance)}
           icon={<Wallet className="h-5 w-5 text-masareef-primary" />}
           className="border-l-4 border-masareef-primary"
+          loading={loading.summary}
         />
         <StatCard
           title={t('income')}
-          value={formatCurrency(adjustedSummary.totalIncome)}
+          value={formatCurrency(financialSummary.totalIncome)}
           icon={<ArrowDown className="h-5 w-5 text-green-600" />}
           trend={monthlyTrends.income}
           className="border-l-4 border-green-500"
+          loading={loading.transactions}
         />
         <StatCard
           title={t('expenses')}
-          value={formatCurrency(adjustedSummary.totalExpenses)}
+          value={formatCurrency(financialSummary.totalExpenses)}
           icon={<ArrowUp className="h-5 w-5 text-red-600" />}
           trend={monthlyTrends.expenses}
           isExpense={true}
           className="border-l-4 border-red-500"
+          loading={loading.transactions}
         />
       </div>
 

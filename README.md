@@ -1,69 +1,96 @@
-# Welcome to your Lovable project
+# Gam3eya Financial Harmony
 
-## Project info
+A comprehensive financial management application that supports transactions, budgets, wallets, and more.
 
-**URL**: https://lovable.dev/projects/ad02546e-4cf6-46f2-9622-f9131fb53cd9
+## Setup Instructions
 
-## How can I edit this code?
+This application uses React for the frontend and Express with MySQL for the backend.
 
-There are several ways of editing your application.
+### Prerequisites
 
-**Use Lovable**
+- Node.js (v14 or higher)
+- MySQL (XAMPP recommended)
+- Git
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ad02546e-4cf6-46f2-9622-f9131fb53cd9) and start prompting.
+### Database Setup
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Start your MySQL server via XAMPP
+2. Create the database and tables using the SQL script provided in the project:
+   - You can run the SQL script directly in phpMyAdmin or using any MySQL client
 
-**Use your preferred IDE**
+### Application Setup
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Configure the database connection:
+   - Open `server/db.cjs` and update the MySQL connection settings if needed (default: localhost, user: root, password: empty)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Running the Application
 
-Follow these steps:
+You can start both the frontend and backend with a single command:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+npm run start
 ```
 
-**Edit a file directly in GitHub**
+This will start:
+- The React frontend on http://localhost:5173
+- The Express API server on http://localhost:3001
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### API Endpoints
 
-**Use GitHub Codespaces**
+The following API endpoints are available:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- **Wallets**
+  - GET `/api/wallets` - Get all wallets
+  - POST `/api/wallets` - Create a wallet
+  - PUT `/api/wallets/:id` - Update a wallet
+  - DELETE `/api/wallets/:id` - Delete a wallet
 
-## What technologies are used for this project?
+- **Categories**
+  - GET `/api/categories` - Get all categories
+  - POST `/api/categories` - Create a category
 
-This project is built with .
+- **Transactions**
+  - GET `/api/transactions` - Get all transactions
+  - POST `/api/transactions` - Create a transaction
+  - PUT `/api/transactions/:id` - Update a transaction
+  - DELETE `/api/transactions/:id` - Delete a transaction
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Budgets**
+  - GET `/api/budgets` - Get all budgets
+  - POST `/api/budgets` - Create a budget
 
-## How can I deploy this project?
+- **Financial Summary**
+  - GET `/api/financial-summary` - Get financial summary
 
-Simply open [Lovable](https://lovable.dev/projects/ad02546e-4cf6-46f2-9622-f9131fb53cd9) and click on Share -> Publish.
+## Project Structure
 
-## I want to use a custom domain - is that possible?
+- `/server` - Express backend API
+- `/src` - React frontend application
+  - `/components` - Reusable UI components
+  - `/contexts` - React context providers
+  - `/hooks` - Custom React hooks
+  - `/pages` - Application pages
+  - `/services` - API services
+  - `/types` - TypeScript type definitions
+  - `/lib` - Utility functions
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## Technology Stack
+
+- **Frontend**:
+  - React
+  - TypeScript
+  - Tailwind CSS
+  - shadcn/ui
+  - React Router
+  - React Hook Form + Zod
+  - Axios
+
+- **Backend**:
+  - Express.js
+  - MySQL2
+  - CORS
