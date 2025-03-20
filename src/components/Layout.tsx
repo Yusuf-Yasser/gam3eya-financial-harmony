@@ -51,7 +51,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex flex-col flex-1">
         <header className="bg-white border-b h-16 px-4 sm:px-6 flex items-center justify-between">
           {isMobile && (
-            <div className="w-8" /> {/* Placeholder for proper alignment */}
+            <div className="w-8"></div> {/* Placeholder for proper alignment */}
           )}
           
           <div className="relative w-full max-w-xs sm:w-64 mx-auto sm:mx-0">
