@@ -36,7 +36,7 @@ import { TransactionPagination } from "@/components/transactions/TransactionPagi
 import { FilterOptions } from "@/components/transactions/AdvancedTransactionFilters";
 import { TransactionDetails } from "@/components/transactions/TransactionDetails";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { transactionsApi } from "@/services/api";
+import { transactionsApi, walletsApi } from "@/services/api";
 
 const getMaxAmount = (transactions: Transaction[]): number => {
   const maxAmount = Math.max(...transactions.map(t => t.amount), 0);
@@ -136,6 +136,12 @@ const Transactions = () => {
       }
       setOpen(false);
       resetForm();
+      
+      try {
+        await walletsApi.getAll();
+      } catch (error) {
+        console.error("Error refreshing wallets:", error);
+      }
     } catch (error) {
       console.error("Error saving transaction:", error);
       toast({
@@ -195,6 +201,12 @@ const Transactions = () => {
         title: t('success'),
         description: t('transaction_deleted_successfully'),
       });
+      
+      try {
+        await walletsApi.getAll();
+      } catch (error) {
+        console.error("Error refreshing wallets:", error);
+      }
     } catch (error) {
       console.error("Error deleting transaction:", error);
       toast({
@@ -205,18 +217,39 @@ const Transactions = () => {
     }
   };
 
-  const handleDuplicateTransaction = (transaction: Transaction) => {
-    const duplicate = {
-      amount: transaction.amount,
-      description: `${transaction.description} (${t('copy')})`,
-      date: new Date().toISOString().split('T')[0],
-      category: transaction.category,
-      type: transaction.type,
-      walletId: transaction.walletId,
-      receiptUrl: transaction.receiptUrl
-    };
-    
-    handleAddOrUpdateTransaction(duplicate as Transaction);
+  const handleDuplicateTransaction = async (transaction: Transaction) => {
+    try {
+      const duplicate = {
+        amount: transaction.amount,
+        description: `${transaction.description} (${t('copy')})`,
+        date: new Date().toISOString().split('T')[0],
+        category: transaction.category,
+        type: transaction.type,
+        walletId: transaction.walletId,
+        receiptUrl: transaction.receiptUrl
+      };
+      
+      await transactionsApi.create(duplicate);
+      await fetchTransactions();
+      
+      try {
+        await walletsApi.getAll();
+      } catch (error) {
+        console.error("Error refreshing wallets:", error);
+      }
+      
+      toast({
+        title: t('success'),
+        description: t('transaction_duplicated_successfully'),
+      });
+    } catch (error) {
+      console.error("Error duplicating transaction:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_duplicate_transaction'),
+        variant: 'destructive',
+      });
+    }
   };
 
   const filteredTransactions = useMemo(() => {

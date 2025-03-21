@@ -116,11 +116,32 @@ app.get('/api/transactions', async (req, res) => {
 app.post('/api/transactions', async (req, res) => {
   try {
     const { id, amount, type, category, description, date, walletId, receiptUrl } = req.body;
-    await pool.query(
-      'INSERT INTO transactions (id, amount, type, category_id, description, date, wallet_id, receipt_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, amount, type, category, description, date, walletId, receiptUrl]
-    );
-    res.status(201).json({ message: 'Transaction created successfully' });
+    
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Insert the transaction
+      await connection.query(
+        'INSERT INTO transactions (id, amount, type, category_id, description, date, wallet_id, receipt_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, amount, type, category, description, date, walletId, receiptUrl]
+      );
+      
+      // Update the wallet balance
+      if (type === 'income') {
+        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', [amount, walletId]);
+      } else {
+        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
+      }
+      
+      await connection.commit();
+      res.status(201).json({ message: 'Transaction created successfully' });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error creating transaction:', error);
     res.status(500).json({ error: 'Failed to create transaction' });
