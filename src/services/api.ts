@@ -19,7 +19,12 @@ export const categoriesApi = {
   },
   
   create: async (category: Omit<Category, 'id'>): Promise<Category> => {
-    const newCategory = { ...category, id: `cat_${Date.now()}` };
+    const newCategory = { 
+      ...category, 
+      id: `cat_${Date.now()}`,
+      // Ensure the icon is included in the request
+      icon: category.icon || 'CreditCard' 
+    };
     await api.post('/categories', newCategory);
     return newCategory as Category;
   }

@@ -71,10 +71,10 @@ app.get('/api/categories', async (req, res) => {
 
 app.post('/api/categories', async (req, res) => {
   try {
-    const { id, name, icon, type } = req.body;
+    const { id, name, icon, type, color, isCustom } = req.body;
     await pool.query(
-      'INSERT INTO categories (id, name, icon, type) VALUES (?, ?, ?, ?)',
-      [id, name, icon, type]
+      'INSERT INTO categories (id, name, icon, type, color, is_custom) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, name, icon, type, color, isCustom ? 1 : 0]
     );
     res.status(201).json({ message: 'Category created successfully' });
   } catch (error) {
