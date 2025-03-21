@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCategories } from "@/contexts/CategoryContext";
@@ -120,21 +121,24 @@ const Budgets = () => {
         period: 'monthly' as const,
       };
       
-      const createdBudget = await budgetsApi.create(budgetToAdd);
+      const response = await budgetsApi.create(budgetToAdd);
+      
+      // Use the spent amount returned from the server, which includes existing transactions
+      const createdBudget = response.budget || response;
       
       // Find category color if available
       const categoryObj = expenseCategories.find(c => c.id === newBudget.category);
       const categoryColor = categoryObj?.color || "#83C5BE";
       
-      const remaining = newBudget.amount - newBudget.spent;
-      const percentage = calculatePercentage(newBudget.spent, newBudget.amount);
+      const remaining = createdBudget.amount - createdBudget.spent;
+      const percentage = calculatePercentage(createdBudget.spent, createdBudget.amount);
       
       const displayBudget: DisplayBudget = {
         ...createdBudget,
         color: categoryColor,
         remaining,
         percentage,
-        isOverBudget: newBudget.spent > newBudget.amount
+        isOverBudget: createdBudget.spent > createdBudget.amount
       };
       
       setBudgets([...budgets, displayBudget]);

@@ -78,10 +78,10 @@ export const budgetsApi = {
     return response.data;
   },
   
-  create: async (budget: Omit<Budget, 'id'>): Promise<Budget> => {
+  create: async (budget: Omit<Budget, 'id'>): Promise<any> => {
     const newBudget = { ...budget, id: `b_${Date.now()}` };
-    await api.post('/budgets', newBudget);
-    return newBudget as Budget;
+    const response = await api.post('/budgets', newBudget);
+    return response.data;
   }
 };
 

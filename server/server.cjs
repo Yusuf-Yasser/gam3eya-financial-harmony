@@ -134,6 +134,19 @@ app.post('/api/transactions', async (req, res) => {
         await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
       }
       
+      // If it's an expense, update the related budget's spent amount
+      if (type === 'expense') {
+        // Check if there's a budget for this category
+        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [category]);
+        if (budgetRows.length > 0) {
+          // Update the budget's spent amount
+          await connection.query(
+            'UPDATE budgets SET spent = spent + ? WHERE category_id = ?', 
+            [amount, category]
+          );
+        }
+      }
+      
       await connection.commit();
       res.status(201).json({ message: 'Transaction created successfully' });
     } catch (error) {
@@ -169,6 +182,7 @@ app.put('/api/transactions/:id', async (req, res) => {
         [amount, type, category, description, date, walletId, receiptUrl, oldTransactionId]
       );
       
+      // Update wallet balance
       if (oldTransaction.type === 'income') {
         await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', 
           [parseFloat(oldTransaction.amount), oldTransaction.wallet_id]);
@@ -181,6 +195,29 @@ app.put('/api/transactions/:id', async (req, res) => {
         await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', [amount, walletId]);
       } else {
         await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
+      }
+      
+      // Update budgets
+      // If the old transaction was an expense, reduce the budget spent
+      if (oldTransaction.type === 'expense') {
+        const [oldBudgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [oldTransaction.category_id]);
+        if (oldBudgetRows.length > 0) {
+          await connection.query(
+            'UPDATE budgets SET spent = spent - ? WHERE category_id = ?', 
+            [parseFloat(oldTransaction.amount), oldTransaction.category_id]
+          );
+        }
+      }
+      
+      // If the new transaction is an expense, increase the budget spent
+      if (type === 'expense') {
+        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [category]);
+        if (budgetRows.length > 0) {
+          await connection.query(
+            'UPDATE budgets SET spent = spent + ? WHERE category_id = ?', 
+            [amount, category]
+          );
+        }
       }
       
       await connection.commit();
@@ -214,12 +251,24 @@ app.delete('/api/transactions/:id', async (req, res) => {
     try {
       await connection.query('DELETE FROM transactions WHERE id = ?', [transactionId]);
       
+      // Update wallet balance
       if (transaction.type === 'income') {
         await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', 
           [parseFloat(transaction.amount), transaction.wallet_id]);
       } else {
         await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', 
           [parseFloat(transaction.amount), transaction.wallet_id]);
+      }
+      
+      // If it was an expense, update the related budget
+      if (transaction.type === 'expense') {
+        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [transaction.category_id]);
+        if (budgetRows.length > 0) {
+          await connection.query(
+            'UPDATE budgets SET spent = spent - ? WHERE category_id = ?', 
+            [parseFloat(transaction.amount), transaction.category_id]
+          );
+        }
       }
       
       await connection.commit();
@@ -266,11 +315,42 @@ app.get('/api/budgets', async (req, res) => {
 app.post('/api/budgets', async (req, res) => {
   try {
     const { id, category, amount, spent, period, startDate, endDate } = req.body;
+    
+    // First check if a budget already exists for this category
+    const [existingBudgets] = await pool.query('SELECT * FROM budgets WHERE category_id = ?', [category]);
+    if (existingBudgets.length > 0) {
+      return res.status(400).json({ error: 'A budget for this category already exists' });
+    }
+    
+    // Calculate initial spent amount from existing transactions
+    let initialSpent = spent || 0;
+    if (!spent) {
+      const [transactionRows] = await pool.query(
+        'SELECT SUM(amount) as total FROM transactions WHERE category_id = ? AND type = "expense"', 
+        [category]
+      );
+      if (transactionRows[0].total) {
+        initialSpent = parseFloat(transactionRows[0].total);
+      }
+    }
+    
     await pool.query(
       'INSERT INTO budgets (id, category_id, amount, spent, period, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, category, amount, spent, period, startDate, endDate]
+      [id, category, amount, initialSpent, period, startDate, endDate]
     );
-    res.status(201).json({ message: 'Budget created successfully' });
+    
+    res.status(201).json({ 
+      message: 'Budget created successfully',
+      budget: {
+        id,
+        category,
+        amount,
+        spent: initialSpent,
+        period,
+        startDate,
+        endDate
+      }
+    });
   } catch (error) {
     console.error('Error creating budget:', error);
     res.status(500).json({ error: 'Failed to create budget' });
