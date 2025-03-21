@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { IncomeIcon, ExpenseIcon } from './TransactionIcons';
 import { Button } from '@/components/ui/button';
-import { Pencil, Eye } from 'lucide-react';
+import { Pencil, Eye, Trash, Copy } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TransactionListProps {
@@ -13,6 +13,8 @@ interface TransactionListProps {
   emptyMessage?: string;
   onView?: (transaction: Transaction) => void;
   onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
+  onDuplicate?: (transaction: Transaction) => void;
   showControls?: boolean;
 }
 
@@ -21,6 +23,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   emptyMessage,
   onView,
   onEdit,
+  onDelete,
+  onDuplicate,
   showControls = false
 }) => {
   const { t, language } = useLanguage();
@@ -53,7 +57,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             <div className="min-w-0">
               <div className="font-medium truncate">{transaction.description}</div>
               <div className="text-sm text-muted-foreground truncate">
-                {formatDate(transaction.date)} • {t(transaction.category)}
+                {formatDate(transaction.date)} • {t(transaction.categoryName || transaction.category)}
               </div>
             </div>
           </div>
@@ -86,6 +90,28 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                   }}
                 >
                   <Pencil className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate && onDuplicate(transaction);
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete && onDelete(transaction);
+                  }}
+                >
+                  <Trash className="h-4 w-4" />
                 </Button>
               </div>
             )}

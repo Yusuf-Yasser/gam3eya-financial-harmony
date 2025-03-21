@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Transaction, Wallet } from '@/types';
@@ -5,7 +6,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Pencil, X } from 'lucide-react';
+import { Pencil, X, Trash, Copy } from 'lucide-react';
 import { IncomeIcon, ExpenseIcon } from '../dashboard/TransactionIcons';
 import { walletsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -14,9 +15,17 @@ interface TransactionDetailsProps {
   transaction: Transaction | null;
   onClose: () => void;
   onEdit: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
+  onDuplicate?: (transaction: Transaction) => void;
 }
 
-export function TransactionDetails({ transaction, onClose, onEdit }: TransactionDetailsProps) {
+export function TransactionDetails({ 
+  transaction, 
+  onClose, 
+  onEdit, 
+  onDelete, 
+  onDuplicate 
+}: TransactionDetailsProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -110,7 +119,19 @@ export function TransactionDetails({ transaction, onClose, onEdit }: Transaction
               </Card>
             )}
             
-            <div className="flex justify-end">
+            <div className="flex justify-end space-x-2">
+              {onDuplicate && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center"
+                  onClick={() => onDuplicate(transaction)}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  {t('duplicate')}
+                </Button>
+              )}
+              
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -118,8 +139,20 @@ export function TransactionDetails({ transaction, onClose, onEdit }: Transaction
                 onClick={() => onEdit(transaction)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                {t('edit_transaction')}
+                {t('edit')}
               </Button>
+              
+              {onDelete && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center bg-red-50 border-red-200 hover:bg-red-100 text-red-600"
+                  onClick={() => onDelete(transaction)}
+                >
+                  <Trash className="mr-2 h-4 w-4" />
+                  {t('delete')}
+                </Button>
+              )}
             </div>
           </div>
         )}

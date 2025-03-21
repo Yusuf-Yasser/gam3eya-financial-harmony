@@ -19,6 +19,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Transaction } from "@/types";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
@@ -30,7 +40,7 @@ import { transactionsApi } from "@/services/api";
 
 const getMaxAmount = (transactions: Transaction[]): number => {
   const maxAmount = Math.max(...transactions.map(t => t.amount), 0);
-  return Math.ceil(maxAmount / 1000) * 1000 || 10000; // Default to 10000 if no transactions
+  return Math.ceil(maxAmount / 1000) * 1000 || 10000;
 };
 
 const getUniqueCategories = (transactions: Transaction[]): string[] => {
@@ -50,8 +60,8 @@ const Transactions = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   
-  // Fetch transactions on component mount
   useEffect(() => {
     fetchTransactions();
   }, []);
@@ -83,14 +93,6 @@ const Transactions = () => {
     types: []
   });
   
-  // Update filter max amount when transactions change
-  useEffect(() => {
-    setFilterOptions(prev => ({
-      ...prev,
-      amountRange: { ...prev.amountRange, max: maxAmount }
-    }));
-  }, [maxAmount]);
-
   useEffect(() => {
     const queryParam = searchParams.get('search');
     if (queryParam) {
@@ -177,6 +179,41 @@ const Transactions = () => {
       searchParams.delete('search');
     }
     setSearchParams(searchParams);
+  };
+
+  const handleDeleteTransaction = async (transaction: Transaction) => {
+    try {
+      await transactionsApi.delete(transaction.id);
+      setTransactions(transactions.filter(t => t.id !== transaction.id));
+      setTransactionToDelete(null);
+      
+      if (viewingTransaction?.id === transaction.id) {
+        setViewingTransaction(null);
+      }
+      
+      toast({
+        title: t('success'),
+        description: t('transaction_deleted_successfully'),
+      });
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_delete_transaction'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDuplicateTransaction = (transaction: Transaction) => {
+    const duplicate: Omit<Transaction, 'id'> = {
+      ...transaction,
+      id: undefined as any,
+      date: new Date().toISOString().split('T')[0],
+      description: `${transaction.description} (${t('copy')})`,
+    };
+    
+    handleAddOrUpdateTransaction(duplicate as Transaction);
   };
 
   const filteredTransactions = useMemo(() => {
@@ -286,6 +323,8 @@ const Transactions = () => {
                 transactions={currentTransactions} 
                 onView={handleViewTransaction}
                 onEdit={handleEditTransaction}
+                onDelete={(transaction) => setTransactionToDelete(transaction)}
+                onDuplicate={handleDuplicateTransaction}
                 showControls={true}
               />
               <TransactionPagination 
@@ -324,7 +363,29 @@ const Transactions = () => {
         transaction={viewingTransaction}
         onClose={() => setViewingTransaction(null)}
         onEdit={handleEditTransaction}
+        onDelete={(transaction) => setTransactionToDelete(transaction)}
+        onDuplicate={handleDuplicateTransaction}
       />
+
+      <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('delete_transaction')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('delete_transaction_confirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => transactionToDelete && handleDeleteTransaction(transactionToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

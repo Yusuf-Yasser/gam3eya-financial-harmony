@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -181,6 +182,11 @@ const Dashboard = () => {
     setViewingTransaction(transaction);
   };
 
+  const handleEditTransaction = (transaction: Transaction) => {
+    // Navigate to transactions page for editing
+    window.location.href = `/transactions?edit=${transaction.id}`;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -263,11 +269,7 @@ const Dashboard = () => {
       <TransactionDetails
         transaction={viewingTransaction}
         onClose={() => setViewingTransaction(null)}
-        onEdit={() => {
-          if (viewingTransaction) {
-            window.location.href = `/transactions`;
-          }
-        }}
+        onEdit={handleEditTransaction}
       />
     </div>
   );
