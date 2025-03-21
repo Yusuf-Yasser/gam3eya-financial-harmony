@@ -206,11 +206,14 @@ const Transactions = () => {
   };
 
   const handleDuplicateTransaction = (transaction: Transaction) => {
-    const duplicate: Omit<Transaction, 'id'> = {
-      ...transaction,
-      id: undefined as any,
-      date: new Date().toISOString().split('T')[0],
+    const duplicate = {
+      amount: transaction.amount,
       description: `${transaction.description} (${t('copy')})`,
+      date: new Date().toISOString().split('T')[0],
+      category: transaction.category,
+      type: transaction.type,
+      walletId: transaction.walletId,
+      receiptUrl: transaction.receiptUrl
     };
     
     handleAddOrUpdateTransaction(duplicate as Transaction);

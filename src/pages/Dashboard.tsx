@@ -14,7 +14,7 @@ import { TransactionDetails } from "@/components/transactions/TransactionDetails
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Transaction, FinancialSummary } from "@/types";
-import { transactionsApi, walletsApi, financialSummaryApi } from "@/services/api";
+import { transactionsApi, walletsApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
@@ -39,18 +39,26 @@ const Dashboard = () => {
   
   useEffect(() => {
     fetchWallets();
-    fetchFinancialSummary();
+    fetchTransactions();
   }, []);
   
   useEffect(() => {
     fetchTransactions();
   }, [selectedDate]);
   
+  // Updated fetchWallets to calculate total balance directly from wallets
   const fetchWallets = async () => {
     try {
       setLoading(prev => ({ ...prev, wallets: true }));
       const data = await walletsApi.getAll();
       setWallets(data);
+      
+      // Calculate total balance from wallets
+      const totalBalance = data.reduce((sum, wallet) => sum + Number(wallet.balance), 0);
+      setFinancialSummary(prev => ({
+        ...prev,
+        totalBalance
+      }));
     } catch (error) {
       console.error("Error fetching wallets:", error);
       toast({
@@ -141,25 +149,8 @@ const Dashboard = () => {
     }
   };
   
-  const fetchFinancialSummary = async () => {
-    try {
-      setLoading(prev => ({ ...prev, summary: true }));
-      const data = await financialSummaryApi.get();
-      setFinancialSummary(prev => ({
-        ...prev,
-        totalBalance: data.totalBalance
-      }));
-    } catch (error) {
-      console.error("Error fetching financial summary:", error);
-      toast({
-        title: t('error'),
-        description: t('failed_to_load_financial_summary'),
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(prev => ({ ...prev, summary: false }));
-    }
-  };
+  // We're removing the fetchFinancialSummary function as we now calculate
+  // the total balance directly from the wallets
   
   const searchedTransactions = transactions.filter(transaction => {
     if (searchTerm.trim() === "") return true;
@@ -185,6 +176,64 @@ const Dashboard = () => {
   const handleEditTransaction = (transaction: Transaction) => {
     // Navigate to transactions page for editing
     window.location.href = `/transactions?edit=${transaction.id}`;
+  };
+
+  const handleDeleteTransaction = async (transaction: Transaction) => {
+    try {
+      await transactionsApi.delete(transaction.id);
+      
+      toast({
+        title: t('success'),
+        description: t('transaction_deleted_successfully'),
+      });
+      
+      // Refresh data after deletion
+      fetchTransactions();
+      fetchWallets(); // We need to refresh wallets to get updated balance
+      
+      if (viewingTransaction?.id === transaction.id) {
+        setViewingTransaction(null);
+      }
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_delete_transaction'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDuplicateTransaction = async (transaction: Transaction) => {
+    try {
+      const duplicate = {
+        amount: transaction.amount,
+        description: `${transaction.description} (${t('copy')})`,
+        date: new Date().toISOString().split('T')[0],
+        category: transaction.category,
+        type: transaction.type,
+        walletId: transaction.walletId,
+        receiptUrl: transaction.receiptUrl
+      };
+      
+      await transactionsApi.create(duplicate);
+      
+      toast({
+        title: t('success'),
+        description: t('transaction_duplicated_successfully'),
+      });
+      
+      // Refresh data after duplication
+      fetchTransactions();
+      fetchWallets(); // We need to refresh wallets to get updated balance
+    } catch (error) {
+      console.error("Error duplicating transaction:", error);
+      toast({
+        title: t('error'),
+        description: t('failed_to_duplicate_transaction'),
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -261,6 +310,10 @@ const Dashboard = () => {
               transactions={recentTransactions} 
               emptyMessage={searchTerm ? t('no_matching_transactions') : t('no_transactions_for_month')}
               onView={handleViewTransaction}
+              onEdit={handleEditTransaction}
+              onDelete={handleDeleteTransaction}
+              onDuplicate={handleDuplicateTransaction}
+              showControls={true}
             />
           </CardContent>
         </Card>
@@ -270,6 +323,8 @@ const Dashboard = () => {
         transaction={viewingTransaction}
         onClose={() => setViewingTransaction(null)}
         onEdit={handleEditTransaction}
+        onDelete={handleDeleteTransaction}
+        onDuplicate={handleDuplicateTransaction}
       />
     </div>
   );
