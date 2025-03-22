@@ -20,15 +20,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// List of icons to choose from
+// List of icons to choose from - make sure all of these exist in lucide-react
 const iconList = [
   'Home', 'ShoppingCart', 'Coffee', 'Utensils', 'Car', 'Bus', 
   'Train', 'Plane', 'CreditCard', 'Wallet', 'DollarSign', 'PiggyBank', 
-  'Gift', 'Heart', 'Smartphone', 'Laptop', 'Tv', 'GameController', 
+  'Gift', 'Heart', 'Smartphone', 'Laptop', 'Tv', 'Gamepad', 
   'BookOpen', 'GraduationCap', 'Briefcase', 'Building', 'ShoppingBag', 
-  'Shirt', 'Package', 'Truck', 'MedicalCross', 'Pill', 'Baby', 
+  'Shirt', 'Package', 'Truck', 'Stethoscope', 'Pill', 'Baby', 
   'Dog', 'Cat', 'Users', 'PartyPopper', 'Ticket', 'Music', 'Film', 
-  'Bike', 'Gym', 'Dumbbell', 'Trophy', 'Target', 'Calendar', 'Wrench', 
+  'Bike', 'Dumbbell', 'Trophy', 'Target', 'Calendar', 'Wrench', 
   'Scissors', 'Coins', 'Receipt', 'Activity'
 ];
 
@@ -53,7 +53,7 @@ export function CategoryDialog({ type, variant = 'default', className }: Categor
     if (newCategory.name.trim()) {
       addCategory({
         name: newCategory.name.trim(),
-        type: newCategory.type,
+        type: newCategory.type as 'income' | 'expense' | 'both',
         icon: newCategory.icon,
       });
       setNewCategory({ name: '', type: type || 'expense', icon: 'CreditCard' });
@@ -126,7 +126,10 @@ export function CategoryDialog({ type, variant = 'default', className }: Categor
                     <ScrollArea className="h-[200px] rounded-md">
                       <div className="grid grid-cols-6 gap-2 p-2">
                         {iconList.map((iconName) => {
+                          // Check if the icon exists in LucideIcons
                           const IconComponent = (LucideIcons as any)[iconName];
+                          if (!IconComponent) return null; // Skip rendering if icon doesn't exist
+                          
                           return (
                             <Button
                               key={iconName}
@@ -149,6 +152,8 @@ export function CategoryDialog({ type, variant = 'default', className }: Categor
                         <div className="text-center">
                           {(() => {
                             const IconComponent = (LucideIcons as any)[newCategory.icon];
+                            if (!IconComponent) return <div>Icon not found</div>;
+                            
                             return (
                               <div className="flex flex-col items-center gap-2">
                                 <IconComponent className="h-16 w-16" />
