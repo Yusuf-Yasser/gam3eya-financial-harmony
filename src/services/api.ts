@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya } from '@/types';
+import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya, Gam3eyaPayment } from '@/types';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -110,6 +110,17 @@ export const gam3eyaApi = {
   
   delete: async (id: string): Promise<void> => {
     await api.delete(`/gam3eyas/${id}`);
+  },
+  
+  makePayment: async (payment: Omit<Gam3eyaPayment, 'id'>): Promise<Gam3eyaPayment> => {
+    const newPayment = { ...payment, id: `gp_${Date.now()}` };
+    await api.post('/gam3eya-payments', newPayment);
+    return newPayment as Gam3eyaPayment;
+  },
+  
+  getPayments: async (gam3eyaId: string): Promise<Gam3eyaPayment[]> => {
+    const response = await api.get(`/gam3eya-payments/${gam3eyaId}`);
+    return response.data;
   }
 };
 

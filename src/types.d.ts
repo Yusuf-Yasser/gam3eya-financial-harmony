@@ -59,4 +59,17 @@ export interface Gam3eya {
   totalCycles: number;
   isAdmin: boolean;
   nextPaymentDate: string;
+  myTurn?: number;
+  paidCycles?: number[];
+  receivedPayout?: boolean;
+}
+
+export interface Gam3eyaPayment {
+  id: string;
+  gam3eyaId: string;
+  walletId: string;
+  amount: number;
+  date: string;
+  cycle: number;
+  type: 'payment' | 'payout';
 }

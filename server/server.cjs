@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db.cjs');
@@ -373,7 +372,10 @@ app.get('/api/gam3eyas', async (req, res) => {
       currentCycle: row.current_cycle,
       totalCycles: row.total_cycles,
       isAdmin: !!row.is_admin,
-      nextPaymentDate: row.next_payment_date.toISOString().split('T')[0]
+      nextPaymentDate: row.next_payment_date.toISOString().split('T')[0],
+      myTurn: row.my_turn,
+      paidCycles: row.paid_cycles ? JSON.parse(row.paid_cycles) : [],
+      receivedPayout: !!row.received_payout
     }));
     
     res.json(transformedRows);
@@ -396,12 +398,15 @@ app.post('/api/gam3eyas', async (req, res) => {
       currentCycle, 
       totalCycles, 
       isAdmin, 
-      nextPaymentDate 
+      nextPaymentDate,
+      myTurn,
+      paidCycles,
+      receivedPayout
     } = req.body;
     
     await pool.query(
-      'INSERT INTO gam3eyas (id, name, total_amount, contribution_amount, members, start_date, end_date, current_cycle, total_cycles, is_admin, next_payment_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate]
+      'INSERT INTO gam3eyas (id, name, total_amount, contribution_amount, members, start_date, end_date, current_cycle, total_cycles, is_admin, next_payment_date, my_turn, paid_cycles, received_payout) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, myTurn, paidCycles ? JSON.stringify(paidCycles) : '[]', receivedPayout || false]
     );
     
     res.status(201).json({ message: 'Gam3eya created successfully' });
@@ -423,12 +428,15 @@ app.put('/api/gam3eyas/:id', async (req, res) => {
       currentCycle, 
       totalCycles, 
       isAdmin, 
-      nextPaymentDate 
+      nextPaymentDate,
+      myTurn,
+      paidCycles,
+      receivedPayout
     } = req.body;
     
     await pool.query(
-      'UPDATE gam3eyas SET name = ?, total_amount = ?, contribution_amount = ?, members = ?, start_date = ?, end_date = ?, current_cycle = ?, total_cycles = ?, is_admin = ?, next_payment_date = ? WHERE id = ?',
-      [name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, req.params.id]
+      'UPDATE gam3eyas SET name = ?, total_amount = ?, contribution_amount = ?, members = ?, start_date = ?, end_date = ?, current_cycle = ?, total_cycles = ?, is_admin = ?, next_payment_date = ?, my_turn = ?, paid_cycles = ?, received_payout = ? WHERE id = ?',
+      [name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, myTurn, paidCycles ? JSON.stringify(paidCycles) : '[]', receivedPayout || false, req.params.id]
     );
     
     res.json({ message: 'Gam3eya updated successfully' });
@@ -440,11 +448,98 @@ app.put('/api/gam3eyas/:id', async (req, res) => {
 
 app.delete('/api/gam3eyas/:id', async (req, res) => {
   try {
+    // First, delete any payments related to this gam3eya
+    await pool.query('DELETE FROM gam3eya_payments WHERE gam3eya_id = ?', [req.params.id]);
+    
+    // Then delete the gam3eya
     await pool.query('DELETE FROM gam3eyas WHERE id = ?', [req.params.id]);
+    
     res.json({ message: 'Gam3eya deleted successfully' });
   } catch (error) {
     console.error('Error deleting gam3eya:', error);
     res.status(500).json({ error: 'Failed to delete gam3eya' });
+  }
+});
+
+// Gam3eya Payments endpoints
+app.post('/api/gam3eya-payments', async (req, res) => {
+  try {
+    const { id, gam3eyaId, walletId, amount, date, cycle, type } = req.body;
+    
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Insert the payment
+      await connection.query(
+        'INSERT INTO gam3eya_payments (id, gam3eya_id, wallet_id, amount, date, cycle, type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, gam3eyaId, walletId, amount, date, cycle, type]
+      );
+      
+      // Update the wallet balance
+      if (type === 'payment') {
+        // Subtract from wallet if it's a payment
+        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
+        
+        // Update gam3eya's paid cycles
+        const [gam3eyaRows] = await connection.query('SELECT * FROM gam3eyas WHERE id = ?', [gam3eyaId]);
+        if (gam3eyaRows.length > 0) {
+          const gam3eya = gam3eyaRows[0];
+          const paidCycles = gam3eya.paid_cycles ? JSON.parse(gam3eya.paid_cycles) : [];
+          
+          if (!paidCycles.includes(cycle)) {
+            paidCycles.push(cycle);
+            
+            // Update the gam3eya record
+            await connection.query(
+              'UPDATE gam3eyas SET paid_cycles = ?, current_cycle = ? WHERE id = ?',
+              [JSON.stringify(paidCycles), Math.max(gam3eya.current_cycle, cycle), gam3eyaId]
+            );
+          }
+        }
+      } else if (type === 'payout') {
+        // Add to wallet if it's a payout
+        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', [amount, walletId]);
+        
+        // Mark as received in gam3eya
+        await connection.query('UPDATE gam3eyas SET received_payout = ? WHERE id = ?', [true, gam3eyaId]);
+      }
+      
+      await connection.commit();
+      res.status(201).json({ message: 'Gam3eya payment processed successfully' });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error processing gam3eya payment:', error);
+    res.status(500).json({ error: 'Failed to process gam3eya payment' });
+  }
+});
+
+app.get('/api/gam3eya-payments/:gam3eyaId', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM gam3eya_payments WHERE gam3eya_id = ? ORDER BY date ASC',
+      [req.params.gam3eyaId]
+    );
+    
+    const transformedRows = rows.map(row => ({
+      id: row.id,
+      gam3eyaId: row.gam3eya_id,
+      walletId: row.wallet_id,
+      amount: parseFloat(row.amount),
+      date: row.date.toISOString().split('T')[0],
+      cycle: row.cycle,
+      type: row.type
+    }));
+    
+    res.json(transformedRows);
+  } catch (error) {
+    console.error('Error fetching gam3eya payments:', error);
+    res.status(500).json({ error: 'Failed to fetch gam3eya payments' });
   }
 });
 
