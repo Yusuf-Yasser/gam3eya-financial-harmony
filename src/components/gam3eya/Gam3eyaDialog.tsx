@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -25,7 +26,19 @@ interface Gam3eyaDialogProps {
   onSave: (data: Gam3eyaFormValues) => void;
 }
 
-export type Gam3eyaFormValues = Omit<Gam3eya, 'id' | 'paidCycles' | 'receivedPayout'>;
+export type Gam3eyaFormValues = {
+  name: string;
+  totalAmount: number;
+  contributionAmount: number;
+  members: number;
+  startDate: string;
+  endDate: string;
+  currentCycle: number;
+  totalCycles: number;
+  isAdmin: boolean;
+  nextPaymentDate: string;
+  myTurn: number;
+};
 
 export function Gam3eyaDialog({ gam3eya, open, onOpenChange, onSave }: Gam3eyaDialogProps) {
   const { t } = useLanguage();
@@ -123,8 +136,17 @@ export function Gam3eyaDialog({ gam3eya, open, onOpenChange, onSave }: Gam3eyaDi
         : formattedMyTurnDate;
       
       onSave({
-        ...data,
-        nextPaymentDate
+        name: data.name,
+        totalAmount: data.totalAmount,
+        contributionAmount: data.contributionAmount,
+        members: data.members,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        currentCycle: data.currentCycle,
+        totalCycles: data.totalCycles,
+        isAdmin: data.isAdmin,
+        nextPaymentDate: nextPaymentDate,
+        myTurn: data.myTurn
       });
     } else {
       onSave(data);
