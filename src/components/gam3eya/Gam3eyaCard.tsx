@@ -100,7 +100,7 @@ export function Gam3eyaCard({
                 <div className="flex items-center text-orange-600">
                   <ArrowUpCircle className="h-4 w-4 mr-1" />
                   <span className="text-sm">
-                    {t('next_payment')}: {format(parseISO(gam3eya.nextPaymentDate), 'MMM dd, yyyy')}
+                    {t('next_payment')}: {format(nextPaymentDate, 'MMM dd, yyyy')}
                   </span>
                 </div>
               )}

@@ -490,7 +490,7 @@ app.post('/api/gam3eya-payments', async (req, res) => {
           if (!paidCycles.includes(cycle)) {
             paidCycles.push(cycle);
             
-            // Update the gam3eya record
+            // Update the gam3eya record with paid cycles and increment current cycle
             await connection.query(
               'UPDATE gam3eyas SET paid_cycles = ?, current_cycle = ? WHERE id = ?',
               [JSON.stringify(paidCycles), Math.max(gam3eya.current_cycle, cycle), gam3eyaId]

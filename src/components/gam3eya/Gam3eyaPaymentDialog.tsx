@@ -9,7 +9,7 @@ import { Gam3eya, Wallet } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { walletsApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 
 interface Gam3eyaPaymentDialogProps {
   gam3eya: Gam3eya;
@@ -32,6 +32,11 @@ export function Gam3eyaPaymentDialog({
   const [selectedWalletId, setSelectedWalletId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+
+  // Get payment amount based on type
+  const paymentAmount = paymentType === 'payment' 
+    ? gam3eya.contributionAmount 
+    : gam3eya.totalAmount; // For payout, use the total amount
 
   useEffect(() => {
     if (open) {
@@ -82,7 +87,7 @@ export function Gam3eyaPaymentDialog({
       await onPayment(
         gam3eya.id, 
         selectedWalletId, 
-        gam3eya.contributionAmount,
+        paymentAmount, // Use the calculated payment amount
         paymentType
       );
       
@@ -131,7 +136,7 @@ export function Gam3eyaPaymentDialog({
           <div className="border rounded-md p-4 bg-muted/30">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">{t('amount')}:</span>
-              <span className="text-lg font-bold">{formatCurrency(gam3eya.contributionAmount)}</span>
+              <span className="text-lg font-bold">{formatCurrency(paymentAmount)}</span>
             </div>
             <div className="flex justify-between items-center mt-2">
               <span className="text-sm font-medium">{t('date')}:</span>
@@ -181,13 +186,13 @@ export function Gam3eyaPaymentDialog({
                   {paymentType === 'payment' ? (
                     <p>
                       {t('after_payment_wallet_balance_will_be', {
-                        balance: formatCurrency(selectedWallet.balance - gam3eya.contributionAmount)
+                        balance: formatCurrency(selectedWallet.balance - paymentAmount)
                       })}
                     </p>
                   ) : (
                     <p>
                       {t('after_payout_wallet_balance_will_be', {
-                        balance: formatCurrency(selectedWallet.balance + gam3eya.contributionAmount)
+                        balance: formatCurrency(selectedWallet.balance + paymentAmount)
                       })}
                     </p>
                   )}

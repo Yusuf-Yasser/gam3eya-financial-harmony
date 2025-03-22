@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -135,7 +134,7 @@ export function Gam3eyaDialog({ gam3eya, open, onOpenChange, onSave }: Gam3eyaDi
         ? data.startDate
         : formattedMyTurnDate;
       
-      onSave({
+      const formValues: Gam3eyaFormValues = {
         name: data.name,
         totalAmount: data.totalAmount,
         contributionAmount: data.contributionAmount,
@@ -147,9 +146,25 @@ export function Gam3eyaDialog({ gam3eya, open, onOpenChange, onSave }: Gam3eyaDi
         isAdmin: data.isAdmin,
         nextPaymentDate: nextPaymentDate,
         myTurn: data.myTurn
-      });
+      };
+      
+      onSave(formValues);
     } else {
-      onSave(data);
+      const formValues: Gam3eyaFormValues = {
+        name: data.name,
+        totalAmount: data.totalAmount,
+        contributionAmount: data.contributionAmount,
+        members: data.members,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        currentCycle: data.currentCycle,
+        totalCycles: data.totalCycles,
+        isAdmin: data.isAdmin,
+        nextPaymentDate: data.nextPaymentDate,
+        myTurn: data.myTurn
+      };
+      
+      onSave(formValues);
     }
     onOpenChange(false);
   };

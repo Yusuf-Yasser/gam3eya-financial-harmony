@@ -5,12 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { gam3eyaApi } from "@/services/api";
+import { gam3eyaApi, transactionsApi } from "@/services/api";
 import { Gam3eya as Gam3eyaType } from "@/types";
 import { Gam3eyaDialog, Gam3eyaFormValues } from "@/components/gam3eya/Gam3eyaDialog";
 import { Gam3eyaCard } from "@/components/gam3eya/Gam3eyaCard";
 import { Gam3eyaPaymentDialog } from "@/components/gam3eya/Gam3eyaPaymentDialog";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 
 const Gam3eya = () => {
   const { t } = useLanguage();
@@ -138,45 +138,69 @@ const Gam3eya = () => {
     type: 'payment' | 'payout'
   ) => {
     try {
+      if (!selectedGam3eya) {
+        throw new Error("No selected gam3eya");
+      }
+      
+      const today = new Date();
+      
+      // Create gam3eya payment record
       await gam3eyaApi.makePayment({
         gam3eyaId,
         walletId,
         amount,
-        date: format(new Date(), 'yyyy-MM-dd'),
-        cycle: selectedGam3eya?.currentCycle || 1,
+        date: format(today, 'yyyy-MM-dd'),
+        cycle: selectedGam3eya.currentCycle || 1,
         type
       });
       
-      // Update the gam3eya in the local state
-      if (selectedGam3eya) {
-        let updatedGam3eya: Gam3eyaType;
+      // Create a transaction record for the payment or payout
+      const transactionType = type === 'payment' ? 'expense' : 'income';
+      const description = type === 'payment' 
+        ? `${t('gam3eya_payment')}: ${selectedGam3eya.name} - ${t('cycle')} ${selectedGam3eya.currentCycle}` 
+        : `${t('gam3eya_payout')}: ${selectedGam3eya.name}`;
         
-        if (type === 'payment') {
-          // Add the cycle to paidCycles
-          const paidCycles = [...(selectedGam3eya.paidCycles || [])];
-          if (!paidCycles.includes(selectedGam3eya.currentCycle)) {
-            paidCycles.push(selectedGam3eya.currentCycle);
-          }
-          
-          updatedGam3eya = {
-            ...selectedGam3eya,
-            paidCycles
-          };
-        } else {
-          // Mark as received
-          updatedGam3eya = {
-            ...selectedGam3eya,
-            receivedPayout: true
-          };
+      await transactionsApi.create({
+        amount: amount,
+        description: description,
+        date: format(today, 'yyyy-MM-dd'),
+        category: 'gam3eya', // You may need to create a specific category for gam3eya
+        type: transactionType,
+        walletId: walletId
+      });
+      
+      // Update the gam3eya in the local state
+      let updatedGam3eya: Gam3eyaType;
+      
+      if (type === 'payment') {
+        // Add the cycle to paidCycles
+        const paidCycles = [...(selectedGam3eya.paidCycles || [])];
+        if (!paidCycles.includes(selectedGam3eya.currentCycle)) {
+          paidCycles.push(selectedGam3eya.currentCycle);
         }
         
-        await gam3eyaApi.update(updatedGam3eya);
+        // Calculate next payment date - advance by one month
+        const nextPaymentDate = addMonths(today, 1);
         
-        // Update local state
-        setGam3eyaList(gam3eyaList.map(g => 
-          g.id === updatedGam3eya.id ? updatedGam3eya : g
-        ));
+        updatedGam3eya = {
+          ...selectedGam3eya,
+          paidCycles,
+          nextPaymentDate: format(nextPaymentDate, 'yyyy-MM-dd')
+        };
+      } else {
+        // Mark as received
+        updatedGam3eya = {
+          ...selectedGam3eya,
+          receivedPayout: true
+        };
       }
+      
+      await gam3eyaApi.update(updatedGam3eya);
+      
+      // Update local state
+      setGam3eyaList(gam3eyaList.map(g => 
+        g.id === updatedGam3eya.id ? updatedGam3eya : g
+      ));
       
       // Refetch all gam3eyas to get the updated data
       fetchGam3eyas();
