@@ -5,6 +5,41 @@ const pool = require('./db.cjs');
 const app = express();
 const PORT = 3001;
 
+// Date utils for consistent date formatting
+const dateUtils = {
+  formatDate: (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+};
+
+// Run initial database schema check and update if needed
+(async function initDatabase() {
+  try {
+    // Check if my_turn column needs to be updated from BOOLEAN to INT
+    const [columns] = await pool.query(`
+      SELECT DATA_TYPE 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = 'gam3eya_financial_harmony' 
+      AND TABLE_NAME = 'gam3eyas' 
+      AND COLUMN_NAME = 'my_turn'
+    `);
+    
+    // If my_turn is a boolean, alter it to be an INT
+    if (columns.length > 0 && columns[0].DATA_TYPE.toLowerCase() === 'tinyint') {
+      console.log('Updating my_turn column from BOOLEAN to INT...');
+      await pool.query(`
+        ALTER TABLE gam3eyas 
+        MODIFY COLUMN my_turn INT NULL
+      `);
+      console.log('Successfully updated gam3eyas table structure.');
+    }
+  } catch (error) {
+    console.error('Error checking or updating database schema:', error);
+  }
+})();
+
 app.use(cors());
 app.use(express.json());
 
@@ -367,13 +402,13 @@ app.get('/api/gam3eyas', async (req, res) => {
       totalAmount: parseFloat(row.total_amount),
       contributionAmount: parseFloat(row.contribution_amount),
       members: row.members,
-      startDate: row.start_date.toISOString().split('T')[0],
-      endDate: row.end_date.toISOString().split('T')[0],
+      startDate: dateUtils.formatDate(row.start_date),
+      endDate: dateUtils.formatDate(row.end_date),
       currentCycle: row.current_cycle,
       totalCycles: row.total_cycles,
       isAdmin: !!row.is_admin,
-      nextPaymentDate: row.next_payment_date.toISOString().split('T')[0],
-      myTurn: row.my_turn,
+      nextPaymentDate: dateUtils.formatDate(row.next_payment_date),
+      myTurn: row.my_turn === null ? null : Number(row.my_turn),
       paidCycles: row.paid_cycles ? JSON.parse(row.paid_cycles) : [],
       receivedPayout: !!row.received_payout
     }));

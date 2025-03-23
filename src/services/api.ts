@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya, Gam3eyaPayment } from '@/types';
 
@@ -9,6 +8,42 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Ensure dates are consistently formatted when sent to the server
+  transformRequest: [
+    (data, headers) => {
+      // If no data, return
+      if (!data) return data;
+      
+      // Create a deep copy to avoid mutating the original
+      const transformedData = JSON.parse(JSON.stringify(data));
+      
+      // Process date fields recursively - convert Date objects to YYYY-MM-DD strings
+      const processObject = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        
+        Object.keys(obj).forEach(key => {
+          const value = obj[key];
+          
+          // Handle Date objects or ISO date strings
+          if (
+            value instanceof Date ||
+            (typeof value === 'string' && 
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value))
+          ) {
+            const date = new Date(value);
+            obj[key] = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          } 
+          // Recursively process nested objects
+          else if (value && typeof value === 'object') {
+            processObject(value);
+          }
+        });
+      };
+      
+      processObject(transformedData);
+      return JSON.stringify(transformedData);
+    }
+  ],
 });
 
 // Categories API

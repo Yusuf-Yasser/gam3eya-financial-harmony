@@ -4,7 +4,7 @@ type LanguageContextType = {
   language: 'en' | 'ar';
   setLanguage: (language: 'en' | 'ar') => void;
   toggleLanguage: () => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, any>) => string;
 };
 
 const translations = {
@@ -392,8 +392,18 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     setLanguage(prevLanguage => prevLanguage === 'en' ? 'ar' : 'en');
   };
 
-  const t = (key: string) => {
-    return translations[language][key] || key;
+  const t = (key: string, params?: Record<string, any>) => {
+    const translationMap = language === 'en' ? translations.en : translations.ar;
+    let translatedText = translationMap[key] || key;
+    
+    // Replace parameters in the translation string if provided
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        translatedText = translatedText.replace(`{${paramKey}}`, String(paramValue));
+      });
+    }
+    
+    return translatedText;
   };
 
   // Set document direction and language on mount and when language changes

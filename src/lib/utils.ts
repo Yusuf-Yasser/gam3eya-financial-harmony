@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -12,6 +11,10 @@ export function formatCurrency(amount: number, currency = 'EGP'): string {
 
 export function formatDate(date: string): string {
   return new Date(date).toLocaleDateString();
+}
+
+export function formatDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function calculatePercentage(value: number, total: number): number {

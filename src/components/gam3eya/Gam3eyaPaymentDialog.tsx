@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -6,10 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Gam3eya, Wallet } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDateString } from "@/lib/utils";
 import { walletsApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { format, addMonths } from "date-fns";
 
 interface Gam3eyaPaymentDialogProps {
   gam3eya: Gam3eya;
@@ -37,6 +35,9 @@ export function Gam3eyaPaymentDialog({
   const paymentAmount = paymentType === 'payment' 
     ? gam3eya.contributionAmount 
     : gam3eya.totalAmount; // For payout, use the total amount
+
+  // Format today's date using our utility function
+  const todayFormatted = formatDateString(new Date());
 
   useEffect(() => {
     if (open) {
@@ -140,7 +141,7 @@ export function Gam3eyaPaymentDialog({
             </div>
             <div className="flex justify-between items-center mt-2">
               <span className="text-sm font-medium">{t('date')}:</span>
-              <span>{format(new Date(), 'yyyy-MM-dd')}</span>
+              <span>{todayFormatted}</span>
             </div>
           </div>
 
