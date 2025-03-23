@@ -5,8 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency = 'EGP'): string {
-  return `${currency} ${amount.toLocaleString()}`;
+export function formatCurrency(amount: number | string | null | undefined, currency = 'EGP'): string {
+  // Convert to number and handle null/undefined
+  const numAmount = amount !== null && amount !== undefined ? Number(amount) : 0;
+  
+  // Check if it's a valid number
+  if (isNaN(numAmount)) {
+    return `${currency} 0.00`;
+  }
+  
+  return `${currency} ${numAmount.toFixed(2)}`;
 }
 
 export function formatDate(date: string): string {

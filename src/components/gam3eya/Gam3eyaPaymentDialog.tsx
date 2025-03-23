@@ -193,7 +193,7 @@ export function Gam3eyaPaymentDialog({
                   ) : (
                     <p>
                       {t('after_payout_wallet_balance_will_be', {
-                        balance: formatCurrency(selectedWallet.balance + paymentAmount)
+                        balance: formatCurrency(Number(selectedWallet.balance) + Number(paymentAmount))
                       })}
                     </p>
                   )}

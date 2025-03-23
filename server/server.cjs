@@ -511,11 +511,11 @@ app.post('/api/gam3eya-payments', async (req, res) => {
         [id, gam3eyaId, walletId, amount, date, cycle, type]
       );
       
-      // Update the wallet balance
+      // We're removing the wallet balance update from here because it's handled by the transaction creation
+      // in the frontend (src/pages/Gam3eya.tsx)
+      
+      // Update gam3eya's paid cycles and other state
       if (type === 'payment') {
-        // Subtract from wallet if it's a payment
-        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
-        
         // Update gam3eya's paid cycles
         const [gam3eyaRows] = await connection.query('SELECT * FROM gam3eyas WHERE id = ?', [gam3eyaId]);
         if (gam3eyaRows.length > 0) {
@@ -533,9 +533,6 @@ app.post('/api/gam3eya-payments', async (req, res) => {
           }
         }
       } else if (type === 'payout') {
-        // Add to wallet if it's a payout
-        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', [amount, walletId]);
-        
         // Mark as received in gam3eya
         await connection.query('UPDATE gam3eyas SET received_payout = ? WHERE id = ?', [true, gam3eyaId]);
       }

@@ -195,6 +195,8 @@ const translations = {
     low: 'Low',
     medium: 'Medium', 
     high: 'High',
+    after_payment_wallet_balance_will_be: 'After payment, wallet balance will be {balance}',
+    after_payout_wallet_balance_will_be: 'After payout, wallet balance will be {balance}',
   },
   ar: {
     dashboard: 'لوحة التحكم',
@@ -380,6 +382,8 @@ const translations = {
     low: 'منخفضة',
     medium: 'متوسطة',
     high: 'عالية',
+    after_payment_wallet_balance_will_be: 'بعد الدفع، سيكون رصيد المحفظة {balance}',
+    after_payout_wallet_balance_will_be: 'بعد الصرف، سيكون رصيد المحفظة {balance}',
   },
 };
 
