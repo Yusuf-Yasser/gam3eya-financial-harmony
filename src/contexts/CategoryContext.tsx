@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Category } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +13,7 @@ interface CategoryContextType {
   resetToDefault: () => void;
   loading: boolean;
   error: string | null;
+  fetchCategories: () => Promise<void>;
 }
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
@@ -24,11 +24,6 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch categories from API on initialization
-  useEffect(() => {
-    fetchCategories();
-  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -122,7 +117,8 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
     getIncomeCategories,
     resetToDefault,
     loading,
-    error
+    error,
+    fetchCategories
   };
 
   return (

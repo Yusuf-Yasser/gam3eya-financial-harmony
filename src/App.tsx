@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,8 +28,8 @@ function App() {
       <TooltipProvider>
         <BrowserRouter>
           <LanguageProvider>
-            <AuthProvider>
-              <CategoryProvider>
+            <CategoryProvider>
+              <AuthProvider>
                 <Toaster />
                 <Sonner />
                 <Routes>
@@ -84,8 +83,8 @@ function App() {
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-              </CategoryProvider>
-            </AuthProvider>
+              </AuthProvider>
+            </CategoryProvider>
           </LanguageProvider>
         </BrowserRouter>
       </TooltipProvider>

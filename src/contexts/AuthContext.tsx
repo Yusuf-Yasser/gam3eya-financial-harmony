@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
 import authApi, { getCurrentUser } from '@/services/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
+import { useCategories } from './CategoryContext';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { fetchCategories } = useCategories();
 
   useEffect(() => {
     // Check if user is already logged in on app load
@@ -36,6 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const user = await authApi.login({ email, password });
       setUser(user);
+      await fetchCategories();
       toast({
         title: "Success",
         description: "Logged in successfully",
