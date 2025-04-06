@@ -1,9 +1,13 @@
+
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db.cjs');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = 3001;
+const JWT_SECRET = 'your-secret-key'; // In production, this should be an environment variable
 
 // Date utils for consistent date formatting
 const dateUtils = {
@@ -11,6 +15,24 @@ const dateUtils = {
     if (!date) return null;
     const d = new Date(date);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+};
+
+// Auth middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. No token provided.' });
+  }
+  
+  try {
+    const verified = jwt.verify(token, JWT_SECRET);
+    req.user = verified;
+    next();
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid token' });
   }
 };
 
@@ -43,10 +65,86 @@ const dateUtils = {
 app.use(cors());
 app.use(express.json());
 
-// Wallets endpoints
-app.get('/api/wallets', async (req, res) => {
+// Auth endpoints
+app.post('/api/auth/register', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM wallets');
+    const { username, email, password } = req.body;
+    
+    // Check if email already exists
+    const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+    
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    // Generate a unique user ID
+    const userId = `user_${Date.now()}`;
+    
+    // Insert the new user
+    await pool.query(
+      'INSERT INTO users (id, username, email, password_hash) VALUES (?, ?, ?, ?)',
+      [userId, username, email, hashedPassword]
+    );
+    
+    // Create a JWT token
+    const token = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '30d' });
+    
+    res.status(201).json({
+      user: {
+        id: userId,
+        username,
+        email
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Failed to register user' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Check if user exists
+    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
+    
+    const user = users[0];
+    
+    // Check if password is correct
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
+    
+    // Create a JWT token
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// Wallets endpoints
+app.get('/api/wallets', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM wallets WHERE user_id = ?', [req.user.id]);
     res.json(rows);
   } catch (error) {
     console.error('Error fetching wallets:', error);
@@ -54,12 +152,12 @@ app.get('/api/wallets', async (req, res) => {
   }
 });
 
-app.post('/api/wallets', async (req, res) => {
+app.post('/api/wallets', authenticateToken, async (req, res) => {
   try {
     const { id, name, balance, type, color, icon } = req.body;
     await pool.query(
-      'INSERT INTO wallets (id, name, balance, type, color, icon) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, name, balance, type, color, icon]
+      'INSERT INTO wallets (id, name, balance, type, color, icon, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, name, balance, type, color, icon, req.user.id]
     );
     res.status(201).json({ message: 'Wallet created successfully' });
   } catch (error) {
@@ -68,12 +166,19 @@ app.post('/api/wallets', async (req, res) => {
   }
 });
 
-app.put('/api/wallets/:id', async (req, res) => {
+app.put('/api/wallets/:id', authenticateToken, async (req, res) => {
   try {
     const { name, balance, type, color, icon } = req.body;
+    
+    // Verify the wallet belongs to the user
+    const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (walletRows.length === 0) {
+      return res.status(404).json({ error: 'Wallet not found or not authorized' });
+    }
+    
     await pool.query(
-      'UPDATE wallets SET name = ?, balance = ?, type = ?, color = ?, icon = ? WHERE id = ?',
-      [name, balance, type, color, icon, req.params.id]
+      'UPDATE wallets SET name = ?, balance = ?, type = ?, color = ?, icon = ? WHERE id = ? AND user_id = ?',
+      [name, balance, type, color, icon, req.params.id, req.user.id]
     );
     res.json({ message: 'Wallet updated successfully' });
   } catch (error) {
@@ -82,9 +187,15 @@ app.put('/api/wallets/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/wallets/:id', async (req, res) => {
+app.delete('/api/wallets/:id', authenticateToken, async (req, res) => {
   try {
-    await pool.query('DELETE FROM wallets WHERE id = ?', [req.params.id]);
+    // Verify the wallet belongs to the user
+    const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (walletRows.length === 0) {
+      return res.status(404).json({ error: 'Wallet not found or not authorized' });
+    }
+    
+    await pool.query('DELETE FROM wallets WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
     res.json({ message: 'Wallet deleted successfully' });
   } catch (error) {
     console.error('Error deleting wallet:', error);
@@ -93,9 +204,10 @@ app.delete('/api/wallets/:id', async (req, res) => {
 });
 
 // Categories endpoints
-app.get('/api/categories', async (req, res) => {
+app.get('/api/categories', authenticateToken, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM categories');
+    // Get both system categories (user_id is NULL) and user-specific categories
+    const [rows] = await pool.query('SELECT * FROM categories WHERE user_id IS NULL OR user_id = ?', [req.user.id]);
     res.json(rows);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -103,12 +215,12 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-app.post('/api/categories', async (req, res) => {
+app.post('/api/categories', authenticateToken, async (req, res) => {
   try {
     const { id, name, icon, type, color, isCustom } = req.body;
     await pool.query(
-      'INSERT INTO categories (id, name, icon, type, color, is_custom) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, name, icon, type, color, isCustom ? 1 : 0]
+      'INSERT INTO categories (id, name, icon, type, color, is_custom, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, name, icon, type, color, isCustom ? 1 : 0, req.user.id]
     );
     res.status(201).json({ message: 'Category created successfully' });
   } catch (error) {
@@ -118,14 +230,15 @@ app.post('/api/categories', async (req, res) => {
 });
 
 // Transactions endpoints
-app.get('/api/transactions', async (req, res) => {
+app.get('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT t.*, c.name as category_name 
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = ?
       ORDER BY t.date DESC
-    `);
+    `, [req.user.id]);
     
     // Transform rows to match the expected format in the frontend
     const transformedRows = rows.map(row => ({
@@ -147,9 +260,15 @@ app.get('/api/transactions', async (req, res) => {
   }
 });
 
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const { id, amount, type, category, description, date, walletId, receiptUrl } = req.body;
+    
+    // Verify the wallet belongs to the user
+    const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [walletId, req.user.id]);
+    if (walletRows.length === 0) {
+      return res.status(404).json({ error: 'Wallet not found or not authorized' });
+    }
     
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -157,26 +276,26 @@ app.post('/api/transactions', async (req, res) => {
     try {
       // Insert the transaction
       await connection.query(
-        'INSERT INTO transactions (id, amount, type, category_id, description, date, wallet_id, receipt_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, amount, type, category, description, date, walletId, receiptUrl]
+        'INSERT INTO transactions (id, amount, type, category_id, description, date, wallet_id, receipt_url, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, amount, type, category, description, date, walletId, receiptUrl, req.user.id]
       );
       
       // Update the wallet balance
       if (type === 'income') {
-        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', [amount, walletId]);
+        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ? AND user_id = ?', [amount, walletId, req.user.id]);
       } else {
-        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
+        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ? AND user_id = ?', [amount, walletId, req.user.id]);
       }
       
       // If it's an expense, update the related budget's spent amount
       if (type === 'expense') {
         // Check if there's a budget for this category
-        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [category]);
+        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ? AND user_id = ?', [category, req.user.id]);
         if (budgetRows.length > 0) {
           // Update the budget's spent amount
           await connection.query(
-            'UPDATE budgets SET spent = spent + ? WHERE category_id = ?', 
-            [amount, category]
+            'UPDATE budgets SET spent = spent + ? WHERE category_id = ? AND user_id = ?', 
+            [amount, category, req.user.id]
           );
         }
       }
@@ -195,14 +314,21 @@ app.post('/api/transactions', async (req, res) => {
   }
 });
 
-app.put('/api/transactions/:id', async (req, res) => {
+app.put('/api/transactions/:id', authenticateToken, async (req, res) => {
   try {
     const { amount, type, category, description, date, walletId, receiptUrl } = req.body;
     const oldTransactionId = req.params.id;
     
-    const [oldTransRows] = await pool.query('SELECT * FROM transactions WHERE id = ?', [oldTransactionId]);
+    // Verify the transaction belongs to the user
+    const [oldTransRows] = await pool.query('SELECT * FROM transactions WHERE id = ? AND user_id = ?', [oldTransactionId, req.user.id]);
     if (oldTransRows.length === 0) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      return res.status(404).json({ error: 'Transaction not found or not authorized' });
+    }
+    
+    // Verify the wallet belongs to the user
+    const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [walletId, req.user.id]);
+    if (walletRows.length === 0) {
+      return res.status(404).json({ error: 'Wallet not found or not authorized' });
     }
     
     const oldTransaction = oldTransRows[0];
@@ -212,44 +338,44 @@ app.put('/api/transactions/:id', async (req, res) => {
     
     try {
       await connection.query(
-        'UPDATE transactions SET amount = ?, type = ?, category_id = ?, description = ?, date = ?, wallet_id = ?, receipt_url = ? WHERE id = ?',
-        [amount, type, category, description, date, walletId, receiptUrl, oldTransactionId]
+        'UPDATE transactions SET amount = ?, type = ?, category_id = ?, description = ?, date = ?, wallet_id = ?, receipt_url = ? WHERE id = ? AND user_id = ?',
+        [amount, type, category, description, date, walletId, receiptUrl, oldTransactionId, req.user.id]
       );
       
       // Update wallet balance
       if (oldTransaction.type === 'income') {
-        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', 
-          [parseFloat(oldTransaction.amount), oldTransaction.wallet_id]);
+        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ? AND user_id = ?', 
+          [parseFloat(oldTransaction.amount), oldTransaction.wallet_id, req.user.id]);
       } else {
-        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', 
-          [parseFloat(oldTransaction.amount), oldTransaction.wallet_id]);
+        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ? AND user_id = ?', 
+          [parseFloat(oldTransaction.amount), oldTransaction.wallet_id, req.user.id]);
       }
       
       if (type === 'income') {
-        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', [amount, walletId]);
+        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ? AND user_id = ?', [amount, walletId, req.user.id]);
       } else {
-        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', [amount, walletId]);
+        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ? AND user_id = ?', [amount, walletId, req.user.id]);
       }
       
       // Update budgets
       // If the old transaction was an expense, reduce the budget spent
       if (oldTransaction.type === 'expense') {
-        const [oldBudgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [oldTransaction.category_id]);
+        const [oldBudgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ? AND user_id = ?', [oldTransaction.category_id, req.user.id]);
         if (oldBudgetRows.length > 0) {
           await connection.query(
-            'UPDATE budgets SET spent = spent - ? WHERE category_id = ?', 
-            [parseFloat(oldTransaction.amount), oldTransaction.category_id]
+            'UPDATE budgets SET spent = spent - ? WHERE category_id = ? AND user_id = ?', 
+            [parseFloat(oldTransaction.amount), oldTransaction.category_id, req.user.id]
           );
         }
       }
       
       // If the new transaction is an expense, increase the budget spent
       if (type === 'expense') {
-        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [category]);
+        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ? AND user_id = ?', [category, req.user.id]);
         if (budgetRows.length > 0) {
           await connection.query(
-            'UPDATE budgets SET spent = spent + ? WHERE category_id = ?', 
-            [amount, category]
+            'UPDATE budgets SET spent = spent + ? WHERE category_id = ? AND user_id = ?', 
+            [amount, category, req.user.id]
           );
         }
       }
@@ -268,13 +394,14 @@ app.put('/api/transactions/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/transactions/:id', async (req, res) => {
+app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
   try {
     const transactionId = req.params.id;
     
-    const [transRows] = await pool.query('SELECT * FROM transactions WHERE id = ?', [transactionId]);
+    // Verify the transaction belongs to the user
+    const [transRows] = await pool.query('SELECT * FROM transactions WHERE id = ? AND user_id = ?', [transactionId, req.user.id]);
     if (transRows.length === 0) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      return res.status(404).json({ error: 'Transaction not found or not authorized' });
     }
     
     const transaction = transRows[0];
@@ -283,24 +410,24 @@ app.delete('/api/transactions/:id', async (req, res) => {
     await connection.beginTransaction();
     
     try {
-      await connection.query('DELETE FROM transactions WHERE id = ?', [transactionId]);
+      await connection.query('DELETE FROM transactions WHERE id = ? AND user_id = ?', [transactionId, req.user.id]);
       
       // Update wallet balance
       if (transaction.type === 'income') {
-        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ?', 
-          [parseFloat(transaction.amount), transaction.wallet_id]);
+        await connection.query('UPDATE wallets SET balance = balance - ? WHERE id = ? AND user_id = ?', 
+          [parseFloat(transaction.amount), transaction.wallet_id, req.user.id]);
       } else {
-        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ?', 
-          [parseFloat(transaction.amount), transaction.wallet_id]);
+        await connection.query('UPDATE wallets SET balance = balance + ? WHERE id = ? AND user_id = ?', 
+          [parseFloat(transaction.amount), transaction.wallet_id, req.user.id]);
       }
       
       // If it was an expense, update the related budget
       if (transaction.type === 'expense') {
-        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ?', [transaction.category_id]);
+        const [budgetRows] = await connection.query('SELECT * FROM budgets WHERE category_id = ? AND user_id = ?', [transaction.category_id, req.user.id]);
         if (budgetRows.length > 0) {
           await connection.query(
-            'UPDATE budgets SET spent = spent - ? WHERE category_id = ?', 
-            [parseFloat(transaction.amount), transaction.category_id]
+            'UPDATE budgets SET spent = spent - ? WHERE category_id = ? AND user_id = ?', 
+            [parseFloat(transaction.amount), transaction.category_id, req.user.id]
           );
         }
       }
@@ -320,13 +447,14 @@ app.delete('/api/transactions/:id', async (req, res) => {
 });
 
 // Budgets endpoints
-app.get('/api/budgets', async (req, res) => {
+app.get('/api/budgets', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT b.*, c.name as category_name 
       FROM budgets b
       JOIN categories c ON b.category_id = c.id
-    `);
+      WHERE b.user_id = ?
+    `, [req.user.id]);
     
     const transformedRows = rows.map(row => ({
       id: row.id,
@@ -346,12 +474,12 @@ app.get('/api/budgets', async (req, res) => {
   }
 });
 
-app.post('/api/budgets', async (req, res) => {
+app.post('/api/budgets', authenticateToken, async (req, res) => {
   try {
     const { id, category, amount, spent, period, startDate, endDate } = req.body;
     
-    // First check if a budget already exists for this category
-    const [existingBudgets] = await pool.query('SELECT * FROM budgets WHERE category_id = ?', [category]);
+    // First check if a budget already exists for this category and user
+    const [existingBudgets] = await pool.query('SELECT * FROM budgets WHERE category_id = ? AND user_id = ?', [category, req.user.id]);
     if (existingBudgets.length > 0) {
       return res.status(400).json({ error: 'A budget for this category already exists' });
     }
@@ -360,8 +488,8 @@ app.post('/api/budgets', async (req, res) => {
     let initialSpent = spent || 0;
     if (!spent) {
       const [transactionRows] = await pool.query(
-        'SELECT SUM(amount) as total FROM transactions WHERE category_id = ? AND type = "expense"', 
-        [category]
+        'SELECT SUM(amount) as total FROM transactions WHERE category_id = ? AND type = "expense" AND user_id = ?', 
+        [category, req.user.id]
       );
       if (transactionRows[0].total) {
         initialSpent = parseFloat(transactionRows[0].total);
@@ -369,8 +497,8 @@ app.post('/api/budgets', async (req, res) => {
     }
     
     await pool.query(
-      'INSERT INTO budgets (id, category_id, amount, spent, period, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, category, amount, initialSpent, period, startDate, endDate]
+      'INSERT INTO budgets (id, category_id, amount, spent, period, start_date, end_date, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, category, amount, initialSpent, period, startDate, endDate, req.user.id]
     );
     
     res.status(201).json({ 
@@ -392,9 +520,9 @@ app.post('/api/budgets', async (req, res) => {
 });
 
 // Gam3eyas endpoints
-app.get('/api/gam3eyas', async (req, res) => {
+app.get('/api/gam3eyas', authenticateToken, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM gam3eyas');
+    const [rows] = await pool.query('SELECT * FROM gam3eyas WHERE user_id = ?', [req.user.id]);
     
     const transformedRows = rows.map(row => ({
       id: row.id,
@@ -420,7 +548,7 @@ app.get('/api/gam3eyas', async (req, res) => {
   }
 });
 
-app.post('/api/gam3eyas', async (req, res) => {
+app.post('/api/gam3eyas', authenticateToken, async (req, res) => {
   try {
     const { 
       id, 
@@ -440,8 +568,8 @@ app.post('/api/gam3eyas', async (req, res) => {
     } = req.body;
     
     await pool.query(
-      'INSERT INTO gam3eyas (id, name, total_amount, contribution_amount, members, start_date, end_date, current_cycle, total_cycles, is_admin, next_payment_date, my_turn, paid_cycles, received_payout) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, myTurn, paidCycles ? JSON.stringify(paidCycles) : '[]', receivedPayout || false]
+      'INSERT INTO gam3eyas (id, name, total_amount, contribution_amount, members, start_date, end_date, current_cycle, total_cycles, is_admin, next_payment_date, my_turn, paid_cycles, received_payout, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, myTurn, paidCycles ? JSON.stringify(paidCycles) : '[]', receivedPayout || false, req.user.id]
     );
     
     res.status(201).json({ message: 'Gam3eya created successfully' });
@@ -451,7 +579,7 @@ app.post('/api/gam3eyas', async (req, res) => {
   }
 });
 
-app.put('/api/gam3eyas/:id', async (req, res) => {
+app.put('/api/gam3eyas/:id', authenticateToken, async (req, res) => {
   try {
     const { 
       name, 
@@ -469,9 +597,15 @@ app.put('/api/gam3eyas/:id', async (req, res) => {
       receivedPayout
     } = req.body;
     
+    // Verify the gam3eya belongs to the user
+    const [gam3eyaRows] = await pool.query('SELECT * FROM gam3eyas WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (gam3eyaRows.length === 0) {
+      return res.status(404).json({ error: 'Gam3eya not found or not authorized' });
+    }
+    
     await pool.query(
-      'UPDATE gam3eyas SET name = ?, total_amount = ?, contribution_amount = ?, members = ?, start_date = ?, end_date = ?, current_cycle = ?, total_cycles = ?, is_admin = ?, next_payment_date = ?, my_turn = ?, paid_cycles = ?, received_payout = ? WHERE id = ?',
-      [name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, myTurn, paidCycles ? JSON.stringify(paidCycles) : '[]', receivedPayout || false, req.params.id]
+      'UPDATE gam3eyas SET name = ?, total_amount = ?, contribution_amount = ?, members = ?, start_date = ?, end_date = ?, current_cycle = ?, total_cycles = ?, is_admin = ?, next_payment_date = ?, my_turn = ?, paid_cycles = ?, received_payout = ? WHERE id = ? AND user_id = ?',
+      [name, totalAmount, contributionAmount, members, startDate, endDate, currentCycle, totalCycles, isAdmin, nextPaymentDate, myTurn, paidCycles ? JSON.stringify(paidCycles) : '[]', receivedPayout || false, req.params.id, req.user.id]
     );
     
     res.json({ message: 'Gam3eya updated successfully' });
@@ -481,13 +615,19 @@ app.put('/api/gam3eyas/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/gam3eyas/:id', async (req, res) => {
+app.delete('/api/gam3eyas/:id', authenticateToken, async (req, res) => {
   try {
+    // Verify the gam3eya belongs to the user
+    const [gam3eyaRows] = await pool.query('SELECT * FROM gam3eyas WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (gam3eyaRows.length === 0) {
+      return res.status(404).json({ error: 'Gam3eya not found or not authorized' });
+    }
+    
     // First, delete any payments related to this gam3eya
-    await pool.query('DELETE FROM gam3eya_payments WHERE gam3eya_id = ?', [req.params.id]);
+    await pool.query('DELETE FROM gam3eya_payments WHERE gam3eya_id = ? AND user_id = ?', [req.params.id, req.user.id]);
     
     // Then delete the gam3eya
-    await pool.query('DELETE FROM gam3eyas WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM gam3eyas WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
     
     res.json({ message: 'Gam3eya deleted successfully' });
   } catch (error) {
@@ -497,9 +637,21 @@ app.delete('/api/gam3eyas/:id', async (req, res) => {
 });
 
 // Gam3eya Payments endpoints
-app.post('/api/gam3eya-payments', async (req, res) => {
+app.post('/api/gam3eya-payments', authenticateToken, async (req, res) => {
   try {
     const { id, gam3eyaId, walletId, amount, date, cycle, type } = req.body;
+    
+    // Verify the gam3eya belongs to the user
+    const [gam3eyaRows] = await pool.query('SELECT * FROM gam3eyas WHERE id = ? AND user_id = ?', [gam3eyaId, req.user.id]);
+    if (gam3eyaRows.length === 0) {
+      return res.status(404).json({ error: 'Gam3eya not found or not authorized' });
+    }
+    
+    // Verify the wallet belongs to the user
+    const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [walletId, req.user.id]);
+    if (walletRows.length === 0) {
+      return res.status(404).json({ error: 'Wallet not found or not authorized' });
+    }
     
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -507,8 +659,8 @@ app.post('/api/gam3eya-payments', async (req, res) => {
     try {
       // Insert the payment
       await connection.query(
-        'INSERT INTO gam3eya_payments (id, gam3eya_id, wallet_id, amount, date, cycle, type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [id, gam3eyaId, walletId, amount, date, cycle, type]
+        'INSERT INTO gam3eya_payments (id, gam3eya_id, wallet_id, amount, date, cycle, type, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, gam3eyaId, walletId, amount, date, cycle, type, req.user.id]
       );
       
       // We're removing the wallet balance update from here because it's handled by the transaction creation
@@ -517,7 +669,7 @@ app.post('/api/gam3eya-payments', async (req, res) => {
       // Update gam3eya's paid cycles and other state
       if (type === 'payment') {
         // Update gam3eya's paid cycles
-        const [gam3eyaRows] = await connection.query('SELECT * FROM gam3eyas WHERE id = ?', [gam3eyaId]);
+        const [gam3eyaRows] = await connection.query('SELECT * FROM gam3eyas WHERE id = ? AND user_id = ?', [gam3eyaId, req.user.id]);
         if (gam3eyaRows.length > 0) {
           const gam3eya = gam3eyaRows[0];
           const paidCycles = gam3eya.paid_cycles ? JSON.parse(gam3eya.paid_cycles) : [];
@@ -527,14 +679,14 @@ app.post('/api/gam3eya-payments', async (req, res) => {
             
             // Update the gam3eya record with paid cycles and increment current cycle
             await connection.query(
-              'UPDATE gam3eyas SET paid_cycles = ?, current_cycle = ? WHERE id = ?',
-              [JSON.stringify(paidCycles), Math.max(gam3eya.current_cycle, cycle), gam3eyaId]
+              'UPDATE gam3eyas SET paid_cycles = ?, current_cycle = ? WHERE id = ? AND user_id = ?',
+              [JSON.stringify(paidCycles), Math.max(gam3eya.current_cycle, cycle), gam3eyaId, req.user.id]
             );
           }
         }
       } else if (type === 'payout') {
         // Mark as received in gam3eya
-        await connection.query('UPDATE gam3eyas SET received_payout = ? WHERE id = ?', [true, gam3eyaId]);
+        await connection.query('UPDATE gam3eyas SET received_payout = ? WHERE id = ? AND user_id = ?', [true, gam3eyaId, req.user.id]);
       }
       
       await connection.commit();
@@ -551,11 +703,17 @@ app.post('/api/gam3eya-payments', async (req, res) => {
   }
 });
 
-app.get('/api/gam3eya-payments/:gam3eyaId', async (req, res) => {
+app.get('/api/gam3eya-payments/:gam3eyaId', authenticateToken, async (req, res) => {
   try {
+    // Verify the gam3eya belongs to the user
+    const [gam3eyaRows] = await pool.query('SELECT * FROM gam3eyas WHERE id = ? AND user_id = ?', [req.params.gam3eyaId, req.user.id]);
+    if (gam3eyaRows.length === 0) {
+      return res.status(404).json({ error: 'Gam3eya not found or not authorized' });
+    }
+    
     const [rows] = await pool.query(
-      'SELECT * FROM gam3eya_payments WHERE gam3eya_id = ? ORDER BY date ASC',
-      [req.params.gam3eyaId]
+      'SELECT * FROM gam3eya_payments WHERE gam3eya_id = ? AND user_id = ? ORDER BY date ASC',
+      [req.params.gam3eyaId, req.user.id]
     );
     
     const transformedRows = rows.map(row => ({
@@ -576,13 +734,13 @@ app.get('/api/gam3eya-payments/:gam3eyaId', async (req, res) => {
 });
 
 // Financial summary endpoint
-app.get('/api/financial-summary', async (req, res) => {
+app.get('/api/financial-summary', authenticateToken, async (req, res) => {
   try {
-    const [wallets] = await pool.query('SELECT * FROM wallets');
+    const [wallets] = await pool.query('SELECT * FROM wallets WHERE user_id = ?', [req.user.id]);
     const totalBalance = wallets.reduce((acc, wallet) => acc + parseFloat(wallet.balance), 0);
     
-    const [income] = await pool.query('SELECT SUM(amount) as totalIncome FROM transactions WHERE type = "income"');
-    const [expenses] = await pool.query('SELECT SUM(amount) as totalExpenses FROM transactions WHERE type = "expense"');
+    const [income] = await pool.query('SELECT SUM(amount) as totalIncome FROM transactions WHERE type = "income" AND user_id = ?', [req.user.id]);
+    const [expenses] = await pool.query('SELECT SUM(amount) as totalExpenses FROM transactions WHERE type = "expense" AND user_id = ?', [req.user.id]);
     
     res.json({
       totalBalance,

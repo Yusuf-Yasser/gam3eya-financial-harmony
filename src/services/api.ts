@@ -1,5 +1,7 @@
+
 import axios from 'axios';
 import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya, Gam3eyaPayment } from '@/types';
+import { getToken } from './auth';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -44,6 +46,15 @@ const api = axios.create({
       return JSON.stringify(transformedData);
     }
   ],
+});
+
+// Add auth token to every request
+api.interceptors.request.use(config => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // Categories API

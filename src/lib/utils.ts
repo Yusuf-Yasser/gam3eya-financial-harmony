@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -53,4 +54,14 @@ export function getPreviousMonths(count: number): string[] {
   }
   
   return months;
+}
+
+export function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+export function isUserAuthenticated(): boolean {
+  return localStorage.getItem('auth_token') !== null;
 }

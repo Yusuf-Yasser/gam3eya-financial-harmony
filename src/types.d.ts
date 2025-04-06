@@ -1,4 +1,21 @@
 
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterCredentials {
+  username: string;
+  email: string;
+  password: string;
+}
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -9,6 +26,7 @@ export interface Transaction {
   type: 'income' | 'expense';
   walletId: string;
   receiptUrl?: string;
+  userId?: string;
 }
 
 export interface Wallet {
@@ -19,6 +37,7 @@ export interface Wallet {
   currency?: string;
   icon?: string;
   color?: string;
+  userId?: string;
 }
 
 export interface FinancialSummary {
@@ -34,6 +53,7 @@ export interface Category {
   icon?: string;
   color?: string;
   isCustom?: boolean;
+  userId?: string;
 }
 
 export interface Budget {
@@ -45,6 +65,7 @@ export interface Budget {
   period: 'monthly' | 'weekly' | 'yearly' | 'custom';
   startDate?: string;
   endDate?: string;
+  userId?: string;
 }
 
 export interface Gam3eya {
@@ -62,6 +83,7 @@ export interface Gam3eya {
   myTurn?: number;
   paidCycles?: number[];
   receivedPayout?: boolean;
+  userId?: string;
 }
 
 export interface Gam3eyaPayment {
@@ -72,4 +94,5 @@ export interface Gam3eyaPayment {
   date: string;
   cycle: number;
   type: 'payment' | 'payout';
+  userId?: string;
 }
