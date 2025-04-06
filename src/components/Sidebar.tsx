@@ -2,6 +2,7 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -18,10 +19,31 @@ interface SidebarItemProps {
   label: string;
   path: string;
   active?: boolean;
+  onClick?: () => void;
 }
 
-const SidebarItem = ({ icon, label, path, active }: SidebarItemProps) => {
+const SidebarItem = ({ icon, label, path, active, onClick }: SidebarItemProps) => {
   const { language } = useLanguage();
+  
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="w-full text-left">
+        <div
+          className={cn(
+            "flex items-center gap-3 px-3 py-2 rounded-md transition-all",
+            active 
+              ? "bg-masareef-primary text-white" 
+              : "hover:bg-masareef-light/50 text-gray-700"
+          )}
+        >
+          <div className="w-5 h-5 flex items-center justify-center shrink-0">
+            {icon}
+          </div>
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+      </button>
+    );
+  }
   
   return (
     <Link to={path} className="w-full">
@@ -45,8 +67,13 @@ const SidebarItem = ({ icon, label, path, active }: SidebarItemProps) => {
 export function Sidebar() {
   const { t, language } = useLanguage();
   const location = useLocation();
+  const { logout } = useAuth();
   
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className={`w-64 border-r bg-white h-screen flex flex-col ${language === 'ar' ? 'rtl' : 'ltr'}`}>
@@ -112,8 +139,8 @@ export function Sidebar() {
         <SidebarItem 
           icon={<LogOut className="w-5 h-5" />} 
           label={t('logout')} 
-          path="/logout"
-          active={isActive('/logout')}
+          path="#"
+          onClick={handleLogout}
         />
       </div>
     </div>
