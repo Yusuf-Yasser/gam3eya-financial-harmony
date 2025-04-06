@@ -3,6 +3,7 @@ import { Category } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from './LanguageContext';
 import { categoriesApi } from '@/services/api';
+import { useAuth } from './AuthContext';
 
 // Context interface
 interface CategoryContextType {
@@ -21,11 +22,16 @@ const CategoryContext = createContext<CategoryContextType | undefined>(undefined
 export function CategoryProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCategories = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await categoriesApi.getAll();
@@ -43,6 +49,10 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchCategories();
+  }, [user]);
 
   // Add a new category
   const addCategory = async (category: Omit<Category, 'id'>) => {

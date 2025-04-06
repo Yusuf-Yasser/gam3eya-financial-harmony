@@ -28,8 +28,8 @@ function App() {
       <TooltipProvider>
         <BrowserRouter>
           <LanguageProvider>
-            <CategoryProvider>
-              <AuthProvider>
+            <AuthProvider>
+              <CategoryProvider>
                 <Toaster />
                 <Sonner />
                 <Routes>
@@ -83,8 +83,8 @@ function App() {
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-              </AuthProvider>
-            </CategoryProvider>
+              </CategoryProvider>
+            </AuthProvider>
           </LanguageProvider>
         </BrowserRouter>
       </TooltipProvider>
