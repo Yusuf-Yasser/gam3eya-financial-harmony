@@ -1,9 +1,10 @@
 
+import { ReactElement } from "react";
 import { ResponsiveContainer } from "recharts";
 
 interface ChartContainerProps {
   height?: number | string;
-  children: React.ReactNode;
+  children: ReactElement;
 }
 
 export function ChartContainer({ height = 300, children }: ChartContainerProps) {

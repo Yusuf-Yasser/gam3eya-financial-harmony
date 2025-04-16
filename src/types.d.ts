@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   username: string;
@@ -68,4 +69,25 @@ export interface Gam3eyaPayment {
   participantId: string;
   paymentDate: string;
   amount: number;
+}
+
+export interface Reminder {
+  id: string;
+  title: string;
+  date: string;
+  notes?: string;
+  completed: boolean;
+  userId?: string;
+}
+
+export interface ScheduledPayment {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  walletId: string;
+  categoryId: string;
+  recurring: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  completed: boolean;
+  userId?: string;
 }

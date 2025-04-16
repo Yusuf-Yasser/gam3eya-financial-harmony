@@ -101,6 +101,35 @@ CREATE TABLE IF NOT EXISTS gam3eya_payments (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Create reminders table
+CREATE TABLE IF NOT EXISTS reminders (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    date DATE NOT NULL,
+    notes TEXT,
+    completed BOOLEAN DEFAULT FALSE,
+    user_id VARCHAR(50) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create scheduled_payments table
+CREATE TABLE IF NOT EXISTS scheduled_payments (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    date DATE NOT NULL,
+    wallet_id VARCHAR(50) NOT NULL,
+    category_id VARCHAR(50) NOT NULL,
+    recurring ENUM('none', 'daily', 'weekly', 'monthly', 'yearly') NOT NULL DEFAULT 'none',
+    completed BOOLEAN DEFAULT FALSE,
+    user_id VARCHAR(50) NOT NULL,
+    FOREIGN KEY (wallet_id) REFERENCES wallets(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert a default user for testing
 INSERT INTO users (id, username, email, password_hash) VALUES
 ('user_1', 'testuser', 'test@example.com', '$2a$10$JI3BQblGOj9Q9r4Kqo8wq.rk9OFNKRd7YzBGPwg9KQaFr5R3kJUci');
@@ -149,3 +178,13 @@ INSERT INTO budgets (id, category_id, amount, spent, period, user_id) VALUES
 INSERT INTO gam3eyas (id, name, total_amount, contribution_amount, members, start_date, end_date, current_cycle, total_cycles, is_admin, next_payment_date, user_id) VALUES
 ('g1', 'Family Gam3eya', 80000, 2000, 10, '2025-01-01', '2025-10-31', 3, 10, true, '2025-03-31', 'user_1'),
 ('g2', 'Friends Gam3eya', 60000, 1500, 8, '2025-01-01', '2025-08-31', 3, 8, false, '2025-03-25', 'user_1');
+
+-- Insert dummy reminders for testing
+INSERT INTO reminders (id, title, date, notes, completed, user_id) VALUES
+('r1', 'Pay rent', '2025-03-30', 'Monthly rent payment', FALSE, 'user_1'),
+('r2', 'Review subscriptions', '2025-03-25', 'Check all active subscriptions', FALSE, 'user_1');
+
+-- Insert dummy scheduled payments for testing
+INSERT INTO scheduled_payments (id, title, amount, date, wallet_id, category_id, recurring, completed, user_id) VALUES
+('sp1', 'Netflix Subscription', 200, '2025-03-20', 'w2', 'entertainment', 'monthly', FALSE, 'user_1'),
+('sp2', 'Gym Membership', 500, '2025-03-22', 'w1', 'personal', 'monthly', FALSE, 'user_1');

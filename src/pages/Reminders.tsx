@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -11,33 +11,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { BellRing, Calendar as CalendarIcon, Plus, Trash2, Check, X, AlertCircle, Bell, CalendarClock } from "lucide-react";
+import { BellRing, Calendar as CalendarIcon, Plus, Trash2, Check, X, AlertCircle, Bell, CalendarClock, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn, formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as z from "zod";
-import { wallets } from "@/data/dummyData";
-
-// Define reminder and scheduled payment types
-interface Reminder {
-  id: string;
-  title: string;
-  date: Date;
-  completed: boolean;
-  notes?: string;
-}
-
-interface ScheduledPayment {
-  id: string;
-  title: string;
-  amount: number;
-  date: Date;
-  walletId: string;
-  recurring: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-  category: string;
-  completed: boolean;
-}
+import { Reminder, ScheduledPayment, Category } from "@/types";
+import { remindersApi, scheduledPaymentsApi, categoriesApi, walletsApi } from "@/services/api";
 
 // Form validation schema for reminders
 const reminderFormSchema = z.object({
@@ -52,49 +34,55 @@ const scheduledPaymentFormSchema = z.object({
   amount: z.coerce.number().min(1, { message: "Amount must be greater than 0" }),
   date: z.date(),
   walletId: z.string().min(1, { message: "Wallet is required" }),
+  categoryId: z.string().min(1, { message: "Category is required" }),
   recurring: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
-  category: z.string().min(1, { message: "Category is required" }),
 });
-
-// List of categories (simplified for this example)
-const categories = [
-  'food', 'transport', 'housing', 'utilities', 'healthcare', 
-  'personal', 'entertainment', 'education', 'debt', 'other'
-];
 
 const Reminders = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("reminders");
-  const [reminders, setReminders] = useState<Reminder[]>([
-    { id: '1', title: 'Pay rent', date: new Date(2025, 2, 30), completed: false },
-    { id: '2', title: 'Review subscriptions', date: new Date(2025, 2, 25), completed: false },
-  ]);
-  const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>([
-    { 
-      id: '1', 
-      title: 'Netflix Subscription', 
-      amount: 200, 
-      date: new Date(2025, 2, 20), 
-      walletId: 'w2', 
-      recurring: 'monthly', 
-      category: 'entertainment',
-      completed: false
-    },
-    { 
-      id: '2', 
-      title: 'Gym Membership', 
-      amount: 500, 
-      date: new Date(2025, 2, 22), 
-      walletId: 'w1', 
-      recurring: 'monthly', 
-      category: 'personal',
-      completed: false
-    },
-  ]);
-  
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  
+  // Fetch reminders
+  const {
+    data: reminders = [],
+    isLoading: isLoadingReminders,
+    isError: isRemindersError
+  } = useQuery({
+    queryKey: ["reminders"],
+    queryFn: remindersApi.getAll
+  });
+  
+  // Fetch scheduled payments
+  const {
+    data: scheduledPayments = [],
+    isLoading: isLoadingPayments,
+    isError: isPaymentsError
+  } = useQuery({
+    queryKey: ["scheduledPayments"],
+    queryFn: scheduledPaymentsApi.getAll
+  });
+  
+  // Fetch categories for the payment form
+  const {
+    data: categories = [],
+    isLoading: isLoadingCategories
+  } = useQuery({
+    queryKey: ["categories"],
+    queryFn: categoriesApi.getAll
+  });
+  
+  // Fetch wallets for the payment form
+  const {
+    data: wallets = [],
+    isLoading: isLoadingWallets
+  } = useQuery({
+    queryKey: ["wallets"],
+    queryFn: walletsApi.getAll
+  });
   
   // Form for scheduled payments
   const paymentForm = useForm<z.infer<typeof scheduledPaymentFormSchema>>({
@@ -104,8 +92,8 @@ const Reminders = () => {
       amount: 0,
       date: new Date(),
       walletId: "",
+      categoryId: "",
       recurring: "none",
-      category: "",
     },
   });
   
@@ -119,95 +107,160 @@ const Reminders = () => {
     },
   });
   
+  // Create reminder mutation
+  const createReminderMutation = useMutation({
+    mutationFn: remindersApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      toast({
+        title: "Reminder created",
+        description: "Your reminder has been created successfully.",
+      });
+      setReminderDialogOpen(false);
+      reminderForm.reset();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create reminder. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Create scheduled payment mutation
+  const createPaymentMutation = useMutation({
+    mutationFn: scheduledPaymentsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduledPayments"] });
+      toast({
+        title: "Payment scheduled",
+        description: "Your payment has been scheduled successfully.",
+      });
+      setDialogOpen(false);
+      paymentForm.reset();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to schedule payment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Toggle reminder complete mutation
+  const toggleReminderMutation = useMutation({
+    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => 
+      remindersApi.toggleComplete(id, completed),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      toast({
+        title: "Reminder updated",
+        description: "The reminder status has been updated.",
+      });
+    },
+  });
+  
+  // Toggle payment complete mutation
+  const togglePaymentMutation = useMutation({
+    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => 
+      scheduledPaymentsApi.toggleComplete(id, completed),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduledPayments"] });
+      toast({
+        title: "Payment updated",
+        description: "The payment status has been updated.",
+      });
+    },
+  });
+  
+  // Delete reminder mutation
+  const deleteReminderMutation = useMutation({
+    mutationFn: remindersApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      toast({
+        title: "Reminder deleted",
+        description: "The reminder has been deleted.",
+      });
+    },
+  });
+  
+  // Delete payment mutation
+  const deletePaymentMutation = useMutation({
+    mutationFn: scheduledPaymentsApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduledPayments"] });
+      toast({
+        title: "Scheduled payment deleted",
+        description: "The scheduled payment has been deleted.",
+      });
+    },
+  });
+  
   // Handle marking a reminder as complete
-  const toggleReminderComplete = (id: string) => {
-    setReminders(prevReminders => 
-      prevReminders.map(reminder => 
-        reminder.id === id ? { ...reminder, completed: !reminder.completed } : reminder
-      )
-    );
-    
-    toast({
-      title: "Reminder updated",
-      description: "The reminder status has been updated.",
-    });
+  const toggleReminderComplete = (id: string, currentStatus: boolean) => {
+    toggleReminderMutation.mutate({ id, completed: !currentStatus });
   };
   
   // Handle marking a scheduled payment as complete
-  const togglePaymentComplete = (id: string) => {
-    setScheduledPayments(prevPayments => 
-      prevPayments.map(payment => 
-        payment.id === id ? { ...payment, completed: !payment.completed } : payment
-      )
-    );
-    
-    toast({
-      title: "Payment updated",
-      description: "The payment status has been updated.",
-    });
+  const togglePaymentComplete = (id: string, currentStatus: boolean) => {
+    togglePaymentMutation.mutate({ id, completed: !currentStatus });
   };
   
   // Handle deleting a reminder
   const deleteReminder = (id: string) => {
-    setReminders(prevReminders => prevReminders.filter(reminder => reminder.id !== id));
-    
-    toast({
-      title: "Reminder deleted",
-      description: "The reminder has been deleted.",
-    });
+    deleteReminderMutation.mutate(id);
   };
   
   // Handle deleting a scheduled payment
   const deletePayment = (id: string) => {
-    setScheduledPayments(prevPayments => prevPayments.filter(payment => payment.id !== id));
-    
-    toast({
-      title: "Scheduled payment deleted",
-      description: "The scheduled payment has been deleted.",
-    });
-  };
-  
-  // Handle adding a new scheduled payment
-  const onSubmitPayment = (data: z.infer<typeof scheduledPaymentFormSchema>) => {
-    const newPayment: ScheduledPayment = {
-      id: Date.now().toString(),
-      title: data.title,
-      amount: data.amount,
-      date: data.date,
-      walletId: data.walletId,
-      recurring: data.recurring,
-      category: data.category,
-      completed: false,
-    };
-    
-    setScheduledPayments(prev => [...prev, newPayment]);
-    setDialogOpen(false);
-    paymentForm.reset();
-    
-    toast({
-      title: "Payment scheduled",
-      description: "Your payment has been scheduled successfully.",
-    });
+    deletePaymentMutation.mutate(id);
   };
   
   // Handle adding a new reminder
   const onSubmitReminder = (data: z.infer<typeof reminderFormSchema>) => {
-    const newReminder: Reminder = {
-      id: Date.now().toString(),
+    const newReminder: Omit<Reminder, 'id'> = {
       title: data.title,
-      date: data.date,
+      date: data.date.toISOString(),
       notes: data.notes,
       completed: false,
     };
     
-    setReminders(prev => [...prev, newReminder]);
-    setReminderDialogOpen(false);
-    reminderForm.reset();
+    createReminderMutation.mutate(newReminder);
+  };
+  
+  // Handle adding a new scheduled payment
+  const onSubmitPayment = (data: z.infer<typeof scheduledPaymentFormSchema>) => {
+    const newPayment: Omit<ScheduledPayment, 'id'> = {
+      title: data.title,
+      amount: data.amount,
+      date: data.date.toISOString(),
+      walletId: data.walletId,
+      categoryId: data.categoryId,
+      recurring: data.recurring,
+      completed: false,
+    };
     
-    toast({
-      title: "Reminder created",
-      description: "Your reminder has been created successfully.",
-    });
+    createPaymentMutation.mutate(newPayment);
+  };
+  
+  // Format date from string to Date object for display
+  const formatDateFromString = (dateString: string) => {
+    return new Date(dateString);
+  };
+  
+  // Get category name by ID
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.name : 'Unknown';
+  };
+  
+  // Get wallet name by ID
+  const getWalletName = (walletId: string) => {
+    const wallet = wallets.find(w => w.id === walletId);
+    return wallet ? wallet.name : 'Unknown';
   };
   
   return (
@@ -316,7 +369,19 @@ const Reminders = () => {
                     />
                     
                     <DialogFooter>
-                      <Button type="submit">{t('create_reminder')}</Button>
+                      <Button 
+                        type="submit"
+                        disabled={createReminderMutation.isPending}
+                      >
+                        {createReminderMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t('creating')}
+                          </>
+                        ) : (
+                          t('create_reminder')
+                        )}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -324,7 +389,21 @@ const Reminders = () => {
             </Dialog>
           </div>
           
-          {reminders.length > 0 ? (
+          {isLoadingReminders ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : isRemindersError ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <AlertCircle className="h-10 w-10 text-destructive mb-4" />
+                <h3 className="text-lg font-medium">{t('error_loading_reminders')}</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('try_refreshing_the_page')}
+                </p>
+              </CardContent>
+            </Card>
+          ) : reminders.length > 0 ? (
             <div className="space-y-4">
               {reminders.map((reminder) => (
                 <Card key={reminder.id} className={cn(
@@ -339,14 +418,15 @@ const Reminders = () => {
                         </CardTitle>
                         <CardDescription>
                           <CalendarIcon className="inline-block mr-1 h-3 w-3" />
-                          {format(reminder.date, "PPP")}
+                          {format(formatDateFromString(reminder.date), "PPP")}
                         </CardDescription>
                       </div>
                       <div className="flex space-x-1">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => toggleReminderComplete(reminder.id)}
+                          onClick={() => toggleReminderComplete(reminder.id, reminder.completed)}
+                          disabled={toggleReminderMutation.isPending}
                           title={reminder.completed ? t('mark_incomplete') : t('mark_complete')}
                         >
                           {reminder.completed ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
@@ -355,6 +435,7 @@ const Reminders = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => deleteReminder(reminder.id)}
+                          disabled={deleteReminderMutation.isPending}
                           title={t('delete')}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -538,7 +619,7 @@ const Reminders = () => {
                     
                     <FormField
                       control={paymentForm.control}
-                      name="category"
+                      name="categoryId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('category')}</FormLabel>
@@ -553,8 +634,8 @@ const Reminders = () => {
                             </FormControl>
                             <SelectContent>
                               {categories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                  {t(category)}
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -565,7 +646,19 @@ const Reminders = () => {
                     />
                     
                     <DialogFooter>
-                      <Button type="submit">{t('schedule_payment')}</Button>
+                      <Button 
+                        type="submit"
+                        disabled={createPaymentMutation.isPending}
+                      >
+                        {createPaymentMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t('scheduling')}
+                          </>
+                        ) : (
+                          t('schedule_payment')
+                        )}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -573,7 +666,21 @@ const Reminders = () => {
             </Dialog>
           </div>
           
-          {scheduledPayments.length > 0 ? (
+          {isLoadingPayments ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : isPaymentsError ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <AlertCircle className="h-10 w-10 text-destructive mb-4" />
+                <h3 className="text-lg font-medium">{t('error_loading_payments')}</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('try_refreshing_the_page')}
+                </p>
+              </CardContent>
+            </Card>
+          ) : scheduledPayments.length > 0 ? (
             <div className="space-y-4">
               {scheduledPayments.map((payment) => (
                 <Card key={payment.id} className={cn(
@@ -588,7 +695,7 @@ const Reminders = () => {
                         </CardTitle>
                         <CardDescription>
                           <CalendarIcon className="inline-block mr-1 h-3 w-3" />
-                          {format(payment.date, "PPP")}
+                          {format(formatDateFromString(payment.date), "PPP")}
                           {payment.recurring !== 'none' && (
                             <span className="ml-2 px-1.5 py-0.5 bg-muted rounded-sm text-xs">
                               {t(payment.recurring)}
@@ -600,7 +707,8 @@ const Reminders = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => togglePaymentComplete(payment.id)}
+                          onClick={() => togglePaymentComplete(payment.id, payment.completed)}
+                          disabled={togglePaymentMutation.isPending}
                           title={payment.completed ? t('mark_incomplete') : t('mark_complete')}
                         >
                           {payment.completed ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
@@ -609,6 +717,7 @@ const Reminders = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => deletePayment(payment.id)}
+                          disabled={deletePaymentMutation.isPending}
                           title={t('delete')}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -622,11 +731,11 @@ const Reminders = () => {
                         {t('amount')}: {formatCurrency(payment.amount)}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {t('category')}: {t(payment.category)}
+                        {t('category')}: {getCategoryName(payment.categoryId)}
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {t('wallet')}: {wallets.find(w => w.id === payment.walletId)?.name}
+                      {t('wallet')}: {getWalletName(payment.walletId)}
                     </div>
                   </CardContent>
                 </Card>

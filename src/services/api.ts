@@ -1,6 +1,5 @@
-
 import axios from 'axios';
-import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya, Gam3eyaPayment } from '@/types';
+import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya, Gam3eyaPayment, Reminder, ScheduledPayment } from '@/types';
 import { getToken } from './auth';
 
 const API_URL = 'http://localhost:3001/api';
@@ -175,6 +174,60 @@ export const financialSummaryApi = {
   get: async (): Promise<FinancialSummary> => {
     const response = await api.get('/financial-summary');
     return response.data;
+  }
+};
+
+// Reminders API
+export const remindersApi = {
+  getAll: async (): Promise<Reminder[]> => {
+    const response = await api.get('/reminders');
+    return response.data;
+  },
+  
+  create: async (reminder: Omit<Reminder, 'id'>): Promise<Reminder> => {
+    const newReminder = { ...reminder, id: `r_${Date.now()}` };
+    await api.post('/reminders', newReminder);
+    return newReminder as Reminder;
+  },
+  
+  update: async (reminder: Reminder): Promise<Reminder> => {
+    await api.put(`/reminders/${reminder.id}`, reminder);
+    return reminder;
+  },
+  
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/reminders/${id}`);
+  },
+  
+  toggleComplete: async (id: string, completed: boolean): Promise<void> => {
+    await api.patch(`/reminders/${id}/complete`, { completed });
+  }
+};
+
+// Scheduled Payments API
+export const scheduledPaymentsApi = {
+  getAll: async (): Promise<ScheduledPayment[]> => {
+    const response = await api.get('/scheduled-payments');
+    return response.data;
+  },
+  
+  create: async (payment: Omit<ScheduledPayment, 'id'>): Promise<ScheduledPayment> => {
+    const newPayment = { ...payment, id: `sp_${Date.now()}` };
+    await api.post('/scheduled-payments', newPayment);
+    return newPayment as ScheduledPayment;
+  },
+  
+  update: async (payment: ScheduledPayment): Promise<ScheduledPayment> => {
+    await api.put(`/scheduled-payments/${payment.id}`, payment);
+    return payment;
+  },
+  
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/scheduled-payments/${id}`);
+  },
+  
+  toggleComplete: async (id: string, completed: boolean): Promise<void> => {
+    await api.patch(`/scheduled-payments/${id}/complete`, { completed });
   }
 };
 
