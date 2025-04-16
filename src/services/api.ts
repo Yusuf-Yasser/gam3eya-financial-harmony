@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { Transaction, Wallet, Category, Budget, FinancialSummary, Gam3eya, Gam3eyaPayment, Reminder, ScheduledPayment } from '@/types';
 import { getToken } from './auth';
@@ -107,9 +106,8 @@ export const transactionsApi = {
   },
   
   create: async (transaction: Omit<Transaction, 'id'>): Promise<Transaction> => {
-    const newTransaction = { ...transaction, id: `t_${Date.now()}` };
-    await api.post('/transactions', newTransaction);
-    return newTransaction as Transaction;
+    const response = await api.post('/transactions', transaction);
+    return { ...transaction, id: response.data.transactionId } as Transaction;
   },
   
   update: async (transaction: Transaction): Promise<Transaction> => {

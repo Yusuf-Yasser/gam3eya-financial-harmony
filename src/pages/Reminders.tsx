@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ const Reminders = () => {
   const [activeTab, setActiveTab] = useState("reminders");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const processingPaymentIdsRef = useRef(new Set<string>());
   const queryClient = useQueryClient();
   
   const {
@@ -153,13 +154,25 @@ const Reminders = () => {
   const togglePaymentMutation = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => 
       scheduledPaymentsApi.toggleComplete(id, completed),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scheduledPayments"] });
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(['scheduledPayments'], (oldData: ScheduledPayment[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.map(payment => 
+          payment.id === variables.id ? { ...payment, completed: variables.completed } : payment
+        );
+      });
       toast({
         title: "Payment updated",
         description: "The payment status has been updated.",
       });
     },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update payment status.",
+        variant: "destructive",
+      });
+    }
   });
   
   const deleteReminderMutation = useMutation({
@@ -194,9 +207,21 @@ const Reminders = () => {
 
   const updatePaymentMutation = useMutation({
     mutationFn: scheduledPaymentsApi.update,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scheduledPayments"] });
+    onSuccess: (updatedPayment) => {
+      queryClient.setQueryData(['scheduledPayments'], (oldData: ScheduledPayment[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.map(payment => 
+          payment.id === updatedPayment.id ? updatedPayment : payment
+        );
+      });
     },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update scheduled payment.",
+        variant: "destructive",
+      });
+    }
   });
   
   const toggleReminderComplete = (id: string, currentStatus: boolean) => {
@@ -247,7 +272,7 @@ const Reminders = () => {
     today.setHours(0, 0, 0, 0);
 
     scheduledPayments.forEach(payment => {
-      if (payment.completed) return;
+      if (payment.completed || processingPaymentIdsRef.current.has(payment.id)) return;
       
       if (payment.recurring !== 'none' && payment.lastProcessed) {
         const lastProcessedDate = parseISO(payment.lastProcessed);
@@ -268,8 +293,10 @@ const Reminders = () => {
           walletId: payment.walletId,
         };
 
+        processingPaymentIdsRef.current.add(payment.id);
+
         createTransactionMutation.mutate(newTransaction, {
-          onSuccess: () => {
+          onSuccess: (createdTransaction) => {
             let nextPaymentDate: Date | null = null;
             const currentDate = new Date(payment.date);
             
@@ -297,21 +324,54 @@ const Reminders = () => {
                     title: "Recurring payment processed",
                     description: `Payment for ${payment.title} has been processed and scheduled for the next cycle.`,
                   });
+                },
+                onError: () => {
+                  toast({
+                    title: "Processing Error",
+                    description: `Failed to update recurring payment ${payment.title} after processing.`,
+                    variant: "destructive",
+                  });
                 }
               });
             } else {
-              togglePaymentMutation.mutate({ id: payment.id, completed: true });
+              queryClient.setQueryData(['scheduledPayments'], (oldData: ScheduledPayment[] | undefined) => {
+                if (!oldData) return [];
+                return oldData.map(p => 
+                  p.id === payment.id ? { ...p, completed: true } : p
+                );
+              });
               
-              toast({
-                title: "Payment processed automatically",
-                description: `Payment for ${payment.title} has been processed.`,
+              togglePaymentMutation.mutate({ id: payment.id, completed: true }, {
+                onSuccess: () => {
+                  toast({
+                    title: "Payment processed automatically",
+                    description: `Payment for ${payment.title} has been processed.`,
+                  });
+                },
+                onError: () => {
+                  toast({
+                    title: "Processing Error",
+                    description: `Failed to mark payment ${payment.title} as complete after processing.`,
+                    variant: "destructive",
+                  });
+                }
               });
             }
+          },
+          onError: (error) => {
+            toast({
+              title: "Transaction Error",
+              description: `Failed to create transaction for payment ${payment.title}. Error: ${error.message}`,
+              variant: "destructive",
+            });
+          },
+          onSettled: () => {
+            processingPaymentIdsRef.current.delete(payment.id);
           }
         });
       }
     });
-  }, [scheduledPayments, isLoadingPayments]);
+  }, [scheduledPayments, isLoadingPayments, queryClient, createTransactionMutation, updatePaymentMutation, togglePaymentMutation, toast]);
   
   const formatDateFromString = (dateString: string) => {
     return new Date(dateString);

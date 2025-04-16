@@ -3,6 +3,7 @@ const cors = require('cors');
 const pool = require('./db.cjs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3001;
@@ -336,7 +337,7 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
-    const { id, amount, type, category, description, date, walletId, receiptUrl } = req.body;
+    const { amount, type, category, description, date, walletId, receiptUrl } = req.body;
     
     // Verify the wallet belongs to the user
     const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [walletId, req.user.id]);
@@ -348,10 +349,13 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
     await connection.beginTransaction();
     
     try {
-      // Insert the transaction
+      // Generate unique ID on the server
+      const transactionId = `t_${crypto.randomUUID()}`;
+      
+      // Insert the transaction using the generated ID
       await connection.query(
         'INSERT INTO transactions (id, amount, type, category_id, description, date, wallet_id, receipt_url, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, amount, type, category, description, date, walletId, receiptUrl, req.user.id]
+        [transactionId, amount, type, category, description, date, walletId, receiptUrl, req.user.id]
       );
       
       // Update the wallet balance
@@ -375,7 +379,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
       }
       
       await connection.commit();
-      res.status(201).json({ message: 'Transaction created successfully' });
+      res.status(201).json({ message: 'Transaction created successfully', transactionId });
     } catch (error) {
       await connection.rollback();
       throw error;
