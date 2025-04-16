@@ -86,6 +86,29 @@ const authenticateToken = (req, res, next) => {
         SELECT 1 FROM scheduled_payments LIMIT 1
       `);
       console.log('Scheduled payments table exists.');
+      
+      // Check if last_processed column exists in scheduled_payments table
+      try {
+        const [lastProcessedColumns] = await pool.query(`
+          SELECT COLUMN_NAME
+          FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_SCHEMA = 'gam3eya_financial_harmony' 
+          AND TABLE_NAME = 'scheduled_payments' 
+          AND COLUMN_NAME = 'last_processed'
+        `);
+        
+        if (lastProcessedColumns.length === 0) {
+          // Add last_processed column if it doesn't exist
+          console.log('Adding last_processed column to scheduled_payments table...');
+          await pool.query(`
+            ALTER TABLE scheduled_payments 
+            ADD COLUMN last_processed DATE NULL
+          `);
+          console.log('Successfully added last_processed column to scheduled_payments table.');
+        }
+      } catch (error) {
+        console.error('Error checking or adding last_processed column:', error);
+      }
     } catch (error) {
       console.log('Creating scheduled_payments table...');
       await pool.query(`
@@ -98,6 +121,7 @@ const authenticateToken = (req, res, next) => {
           category_id VARCHAR(50) NOT NULL,
           recurring ENUM('none', 'daily', 'weekly', 'monthly', 'yearly') DEFAULT 'none',
           completed TINYINT(1) DEFAULT 0,
+          last_processed DATE NULL,
           user_id VARCHAR(50) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -899,7 +923,7 @@ app.delete('/api/reminders/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Scheduled Payments endpoints
+// Updated Scheduled Payments endpoints with lastProcessed field
 app.get('/api/scheduled-payments', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -921,7 +945,8 @@ app.get('/api/scheduled-payments', authenticateToken, async (req, res) => {
       categoryId: row.category_id,
       categoryName: row.category_name,
       recurring: row.recurring,
-      completed: !!row.completed
+      completed: !!row.completed,
+      lastProcessed: row.last_processed ? row.last_processed.toISOString().split('T')[0] : null
     }));
     
     res.json(transformedRows);
@@ -933,7 +958,7 @@ app.get('/api/scheduled-payments', authenticateToken, async (req, res) => {
 
 app.post('/api/scheduled-payments', authenticateToken, async (req, res) => {
   try {
-    const { id, title, amount, date, walletId, categoryId, recurring, completed } = req.body;
+    const { id, title, amount, date, walletId, categoryId, recurring, completed, lastProcessed } = req.body;
     
     // Verify the wallet belongs to the user
     const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [walletId, req.user.id]);
@@ -942,8 +967,8 @@ app.post('/api/scheduled-payments', authenticateToken, async (req, res) => {
     }
     
     await pool.query(
-      'INSERT INTO scheduled_payments (id, title, amount, date, wallet_id, category_id, recurring, completed, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, title, amount, date, walletId, categoryId, recurring, completed ? 1 : 0, req.user.id]
+      'INSERT INTO scheduled_payments (id, title, amount, date, wallet_id, category_id, recurring, completed, last_processed, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, title, amount, date, walletId, categoryId, recurring, completed ? 1 : 0, lastProcessed, req.user.id]
     );
     
     res.status(201).json({ message: 'Scheduled payment created successfully' });
@@ -955,7 +980,7 @@ app.post('/api/scheduled-payments', authenticateToken, async (req, res) => {
 
 app.put('/api/scheduled-payments/:id', authenticateToken, async (req, res) => {
   try {
-    const { title, amount, date, walletId, categoryId, recurring, completed } = req.body;
+    const { title, amount, date, walletId, categoryId, recurring, completed, lastProcessed } = req.body;
     
     // Verify the scheduled payment belongs to the user
     const [paymentRows] = await pool.query('SELECT * FROM scheduled_payments WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
@@ -964,8 +989,8 @@ app.put('/api/scheduled-payments/:id', authenticateToken, async (req, res) => {
     }
     
     await pool.query(
-      'UPDATE scheduled_payments SET title = ?, amount = ?, date = ?, wallet_id = ?, category_id = ?, recurring = ?, completed = ? WHERE id = ? AND user_id = ?',
-      [title, amount, date, walletId, categoryId, recurring, completed ? 1 : 0, req.params.id, req.user.id]
+      'UPDATE scheduled_payments SET title = ?, amount = ?, date = ?, wallet_id = ?, category_id = ?, recurring = ?, completed = ?, last_processed = ? WHERE id = ? AND user_id = ?',
+      [title, amount, date, walletId, categoryId, recurring, completed ? 1 : 0, lastProcessed, req.params.id, req.user.id]
     );
     
     res.json({ message: 'Scheduled payment updated successfully' });

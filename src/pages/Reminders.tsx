@@ -12,14 +12,14 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BellRing, Calendar as CalendarIcon, Plus, Trash2, Check, X, AlertCircle, Bell, CalendarClock, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isAfter, isBefore, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { cn, formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as z from "zod";
-import { Reminder, ScheduledPayment, Category } from "@/types";
-import { remindersApi, scheduledPaymentsApi, categoriesApi, walletsApi } from "@/services/api";
+import { Reminder, ScheduledPayment, Category, Transaction } from "@/types";
+import { remindersApi, scheduledPaymentsApi, categoriesApi, walletsApi, transactionsApi } from "@/services/api";
 
 // Form validation schema for reminders
 const reminderFormSchema = z.object({
@@ -198,6 +198,23 @@ const Reminders = () => {
       });
     },
   });
+
+  // Create transaction mutation for automatic processing
+  const createTransactionMutation = useMutation({
+    mutationFn: transactionsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+    },
+  });
+
+  // Update scheduled payment mutation
+  const updatePaymentMutation = useMutation({
+    mutationFn: scheduledPaymentsApi.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduledPayments"] });
+    },
+  });
   
   // Handle marking a reminder as complete
   const toggleReminderComplete = (id: string, currentStatus: boolean) => {
@@ -245,6 +262,81 @@ const Reminders = () => {
     
     createPaymentMutation.mutate(newPayment);
   };
+  
+  // Process scheduled payments if they are due
+  useEffect(() => {
+    if (scheduledPayments.length === 0 || isLoadingPayments) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    scheduledPayments.forEach(payment => {
+      if (payment.completed) return;
+
+      const paymentDate = new Date(payment.date);
+      paymentDate.setHours(0, 0, 0, 0);
+
+      // Check if the payment is due (today or earlier)
+      if (isBefore(paymentDate, today) || paymentDate.getTime() === today.getTime()) {
+        // Create the transaction for this payment
+        const newTransaction: Omit<Transaction, 'id'> = {
+          date: new Date().toISOString(),
+          amount: payment.amount,
+          description: `Auto-payment: ${payment.title}`,
+          type: 'expense',
+          categoryId: payment.categoryId,
+          category: payment.categoryId,
+          walletId: payment.walletId,
+        };
+
+        // Process the payment (create transaction)
+        createTransactionMutation.mutate(newTransaction, {
+          onSuccess: () => {
+            // Calculate next payment date if recurring
+            let nextPaymentDate: Date | null = null;
+            const currentDate = new Date(payment.date);
+            
+            if (payment.recurring === 'daily') {
+              nextPaymentDate = addDays(currentDate, 1);
+            } else if (payment.recurring === 'weekly') {
+              nextPaymentDate = addWeeks(currentDate, 1);
+            } else if (payment.recurring === 'monthly') {
+              nextPaymentDate = addMonths(currentDate, 1);
+            } else if (payment.recurring === 'yearly') {
+              nextPaymentDate = addYears(currentDate, 1);
+            }
+
+            if (nextPaymentDate && payment.recurring !== 'none') {
+              // Update the payment with the new date for recurring payments
+              const updatedPayment: ScheduledPayment = {
+                ...payment,
+                date: nextPaymentDate.toISOString(),
+                lastProcessed: new Date().toISOString(),
+                completed: false,
+              };
+              
+              updatePaymentMutation.mutate(updatedPayment, {
+                onSuccess: () => {
+                  toast({
+                    title: "Recurring payment processed",
+                    description: `Payment for ${payment.title} has been processed and scheduled for the next cycle.`,
+                  });
+                }
+              });
+            } else {
+              // For non-recurring payments, just mark as completed
+              togglePaymentMutation.mutate({ id: payment.id, completed: true });
+              
+              toast({
+                title: "Payment processed automatically",
+                description: `Payment for ${payment.title} has been processed.`,
+              });
+            }
+          }
+        });
+      }
+    });
+  }, [scheduledPayments, isLoadingPayments]);
   
   // Format date from string to Date object for display
   const formatDateFromString = (dateString: string) => {
@@ -737,6 +829,11 @@ const Reminders = () => {
                     <div className="text-sm text-muted-foreground mt-1">
                       {t('wallet')}: {getWalletName(payment.walletId)}
                     </div>
+                    {payment.lastProcessed && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {t('last_processed')}: {format(new Date(payment.lastProcessed), "PPP")}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

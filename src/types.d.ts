@@ -90,4 +90,5 @@ export interface ScheduledPayment {
   recurring: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   completed: boolean;
   userId?: string;
+  lastProcessed?: string; // Added new field to track when payment was last processed
 }
