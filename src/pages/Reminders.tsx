@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +11,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BellRing, Calendar as CalendarIcon, Plus, Trash2, Check, X, AlertCircle, Bell, CalendarClock, Loader2 } from "lucide-react";
-import { format, isAfter, isBefore, addDays, addWeeks, addMonths, addYears } from "date-fns";
+import { format, isAfter, isBefore, addDays, addWeeks, addMonths, addYears, isToday, isSameDay, parseISO } from "date-fns";
 import { cn, formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -21,14 +20,12 @@ import * as z from "zod";
 import { Reminder, ScheduledPayment, Category, Transaction } from "@/types";
 import { remindersApi, scheduledPaymentsApi, categoriesApi, walletsApi, transactionsApi } from "@/services/api";
 
-// Form validation schema for reminders
 const reminderFormSchema = z.object({
   title: z.string().min(1, { message: "Title is required" }),
   date: z.date(),
   notes: z.string().optional(),
 });
 
-// Form validation schema for scheduled payments
 const scheduledPaymentFormSchema = z.object({
   title: z.string().min(1, { message: "Title is required" }),
   amount: z.coerce.number().min(1, { message: "Amount must be greater than 0" }),
@@ -46,7 +43,6 @@ const Reminders = () => {
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   
-  // Fetch reminders
   const {
     data: reminders = [],
     isLoading: isLoadingReminders,
@@ -56,7 +52,6 @@ const Reminders = () => {
     queryFn: remindersApi.getAll
   });
   
-  // Fetch scheduled payments
   const {
     data: scheduledPayments = [],
     isLoading: isLoadingPayments,
@@ -66,7 +61,6 @@ const Reminders = () => {
     queryFn: scheduledPaymentsApi.getAll
   });
   
-  // Fetch categories for the payment form
   const {
     data: categories = [],
     isLoading: isLoadingCategories
@@ -75,7 +69,6 @@ const Reminders = () => {
     queryFn: categoriesApi.getAll
   });
   
-  // Fetch wallets for the payment form
   const {
     data: wallets = [],
     isLoading: isLoadingWallets
@@ -84,7 +77,6 @@ const Reminders = () => {
     queryFn: walletsApi.getAll
   });
   
-  // Form for scheduled payments
   const paymentForm = useForm<z.infer<typeof scheduledPaymentFormSchema>>({
     resolver: zodResolver(scheduledPaymentFormSchema),
     defaultValues: {
@@ -97,7 +89,6 @@ const Reminders = () => {
     },
   });
   
-  // Form for reminders
   const reminderForm = useForm<z.infer<typeof reminderFormSchema>>({
     resolver: zodResolver(reminderFormSchema),
     defaultValues: {
@@ -107,7 +98,6 @@ const Reminders = () => {
     },
   });
   
-  // Create reminder mutation
   const createReminderMutation = useMutation({
     mutationFn: remindersApi.create,
     onSuccess: () => {
@@ -128,7 +118,6 @@ const Reminders = () => {
     },
   });
   
-  // Create scheduled payment mutation
   const createPaymentMutation = useMutation({
     mutationFn: scheduledPaymentsApi.create,
     onSuccess: () => {
@@ -149,7 +138,6 @@ const Reminders = () => {
     },
   });
   
-  // Toggle reminder complete mutation
   const toggleReminderMutation = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => 
       remindersApi.toggleComplete(id, completed),
@@ -162,7 +150,6 @@ const Reminders = () => {
     },
   });
   
-  // Toggle payment complete mutation
   const togglePaymentMutation = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => 
       scheduledPaymentsApi.toggleComplete(id, completed),
@@ -175,7 +162,6 @@ const Reminders = () => {
     },
   });
   
-  // Delete reminder mutation
   const deleteReminderMutation = useMutation({
     mutationFn: remindersApi.delete,
     onSuccess: () => {
@@ -187,7 +173,6 @@ const Reminders = () => {
     },
   });
   
-  // Delete payment mutation
   const deletePaymentMutation = useMutation({
     mutationFn: scheduledPaymentsApi.delete,
     onSuccess: () => {
@@ -199,7 +184,6 @@ const Reminders = () => {
     },
   });
 
-  // Create transaction mutation for automatic processing
   const createTransactionMutation = useMutation({
     mutationFn: transactionsApi.create,
     onSuccess: () => {
@@ -208,7 +192,6 @@ const Reminders = () => {
     },
   });
 
-  // Update scheduled payment mutation
   const updatePaymentMutation = useMutation({
     mutationFn: scheduledPaymentsApi.update,
     onSuccess: () => {
@@ -216,27 +199,22 @@ const Reminders = () => {
     },
   });
   
-  // Handle marking a reminder as complete
   const toggleReminderComplete = (id: string, currentStatus: boolean) => {
     toggleReminderMutation.mutate({ id, completed: !currentStatus });
   };
   
-  // Handle marking a scheduled payment as complete
   const togglePaymentComplete = (id: string, currentStatus: boolean) => {
     togglePaymentMutation.mutate({ id, completed: !currentStatus });
   };
   
-  // Handle deleting a reminder
   const deleteReminder = (id: string) => {
     deleteReminderMutation.mutate(id);
   };
   
-  // Handle deleting a scheduled payment
   const deletePayment = (id: string) => {
     deletePaymentMutation.mutate(id);
   };
   
-  // Handle adding a new reminder
   const onSubmitReminder = (data: z.infer<typeof reminderFormSchema>) => {
     const newReminder: Omit<Reminder, 'id'> = {
       title: data.title,
@@ -248,7 +226,6 @@ const Reminders = () => {
     createReminderMutation.mutate(newReminder);
   };
   
-  // Handle adding a new scheduled payment
   const onSubmitPayment = (data: z.infer<typeof scheduledPaymentFormSchema>) => {
     const newPayment: Omit<ScheduledPayment, 'id'> = {
       title: data.title,
@@ -263,7 +240,6 @@ const Reminders = () => {
     createPaymentMutation.mutate(newPayment);
   };
   
-  // Process scheduled payments if they are due
   useEffect(() => {
     if (scheduledPayments.length === 0 || isLoadingPayments) return;
 
@@ -272,13 +248,16 @@ const Reminders = () => {
 
     scheduledPayments.forEach(payment => {
       if (payment.completed) return;
+      
+      if (payment.recurring !== 'none' && payment.lastProcessed) {
+        const lastProcessedDate = parseISO(payment.lastProcessed);
+        if (isToday(lastProcessedDate)) return;
+      }
 
       const paymentDate = new Date(payment.date);
       paymentDate.setHours(0, 0, 0, 0);
 
-      // Check if the payment is due (today or earlier)
-      if (isBefore(paymentDate, today) || paymentDate.getTime() === today.getTime()) {
-        // Create the transaction for this payment
+      if (isBefore(paymentDate, today) || isSameDay(paymentDate, today)) {
         const newTransaction: Omit<Transaction, 'id'> = {
           date: new Date().toISOString(),
           amount: payment.amount,
@@ -289,10 +268,8 @@ const Reminders = () => {
           walletId: payment.walletId,
         };
 
-        // Process the payment (create transaction)
         createTransactionMutation.mutate(newTransaction, {
           onSuccess: () => {
-            // Calculate next payment date if recurring
             let nextPaymentDate: Date | null = null;
             const currentDate = new Date(payment.date);
             
@@ -307,7 +284,6 @@ const Reminders = () => {
             }
 
             if (nextPaymentDate && payment.recurring !== 'none') {
-              // Update the payment with the new date for recurring payments
               const updatedPayment: ScheduledPayment = {
                 ...payment,
                 date: nextPaymentDate.toISOString(),
@@ -324,7 +300,6 @@ const Reminders = () => {
                 }
               });
             } else {
-              // For non-recurring payments, just mark as completed
               togglePaymentMutation.mutate({ id: payment.id, completed: true });
               
               toast({
@@ -338,18 +313,15 @@ const Reminders = () => {
     });
   }, [scheduledPayments, isLoadingPayments]);
   
-  // Format date from string to Date object for display
   const formatDateFromString = (dateString: string) => {
     return new Date(dateString);
   };
   
-  // Get category name by ID
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
     return category ? category.name : 'Unknown';
   };
   
-  // Get wallet name by ID
   const getWalletName = (walletId: string) => {
     const wallet = wallets.find(w => w.id === walletId);
     return wallet ? wallet.name : 'Unknown';
