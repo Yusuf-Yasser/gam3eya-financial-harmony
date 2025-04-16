@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db.cjs');
@@ -56,6 +55,57 @@ const authenticateToken = (req, res, next) => {
         MODIFY COLUMN my_turn INT NULL
       `);
       console.log('Successfully updated gam3eyas table structure.');
+    }
+    
+    // Check if reminders table exists, create it if it doesn't
+    try {
+      await pool.query(`
+        SELECT 1 FROM reminders LIMIT 1
+      `);
+      console.log('Reminders table exists.');
+    } catch (error) {
+      console.log('Creating reminders table...');
+      await pool.query(`
+        CREATE TABLE reminders (
+          id VARCHAR(50) PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          date DATE NOT NULL,
+          notes TEXT,
+          completed TINYINT(1) DEFAULT 0,
+          user_id VARCHAR(50) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('Successfully created reminders table.');
+    }
+    
+    // Check if scheduled_payments table exists, create it if it doesn't
+    try {
+      await pool.query(`
+        SELECT 1 FROM scheduled_payments LIMIT 1
+      `);
+      console.log('Scheduled payments table exists.');
+    } catch (error) {
+      console.log('Creating scheduled_payments table...');
+      await pool.query(`
+        CREATE TABLE scheduled_payments (
+          id VARCHAR(50) PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          amount DECIMAL(10, 2) NOT NULL,
+          date DATE NOT NULL,
+          wallet_id VARCHAR(50) NOT NULL,
+          category_id VARCHAR(50) NOT NULL,
+          recurring ENUM('none', 'daily', 'weekly', 'monthly', 'yearly') DEFAULT 'none',
+          completed TINYINT(1) DEFAULT 0,
+          user_id VARCHAR(50) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (wallet_id) REFERENCES wallets(id),
+          FOREIGN KEY (category_id) REFERENCES categories(id)
+        )
+      `);
+      console.log('Successfully created scheduled_payments table.');
     }
   } catch (error) {
     console.error('Error checking or updating database schema:', error);
@@ -750,6 +800,217 @@ app.get('/api/financial-summary', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching financial summary:', error);
     res.status(500).json({ error: 'Failed to fetch financial summary' });
+  }
+});
+
+// Reminders endpoints
+app.get('/api/reminders', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM reminders WHERE user_id = ? ORDER BY date ASC', [req.user.id]);
+    const transformedRows = rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      date: row.date.toISOString().split('T')[0],
+      notes: row.notes,
+      completed: !!row.completed
+    }));
+    
+    res.json(transformedRows);
+  } catch (error) {
+    console.error('Error fetching reminders:', error);
+    res.status(500).json({ error: 'Failed to fetch reminders' });
+  }
+});
+
+app.post('/api/reminders', authenticateToken, async (req, res) => {
+  try {
+    const { id, title, date, notes, completed } = req.body;
+    
+    await pool.query(
+      'INSERT INTO reminders (id, title, date, notes, completed, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, title, date, notes, completed ? 1 : 0, req.user.id]
+    );
+    
+    res.status(201).json({ message: 'Reminder created successfully' });
+  } catch (error) {
+    console.error('Error creating reminder:', error);
+    res.status(500).json({ error: 'Failed to create reminder' });
+  }
+});
+
+app.put('/api/reminders/:id', authenticateToken, async (req, res) => {
+  try {
+    const { title, date, notes, completed } = req.body;
+    
+    // Verify the reminder belongs to the user
+    const [reminderRows] = await pool.query('SELECT * FROM reminders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (reminderRows.length === 0) {
+      return res.status(404).json({ error: 'Reminder not found or not authorized' });
+    }
+    
+    await pool.query(
+      'UPDATE reminders SET title = ?, date = ?, notes = ?, completed = ? WHERE id = ? AND user_id = ?',
+      [title, date, notes, completed ? 1 : 0, req.params.id, req.user.id]
+    );
+    
+    res.json({ message: 'Reminder updated successfully' });
+  } catch (error) {
+    console.error('Error updating reminder:', error);
+    res.status(500).json({ error: 'Failed to update reminder' });
+  }
+});
+
+app.patch('/api/reminders/:id/complete', authenticateToken, async (req, res) => {
+  try {
+    const { completed } = req.body;
+    
+    // Verify the reminder belongs to the user
+    const [reminderRows] = await pool.query('SELECT * FROM reminders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (reminderRows.length === 0) {
+      return res.status(404).json({ error: 'Reminder not found or not authorized' });
+    }
+    
+    await pool.query(
+      'UPDATE reminders SET completed = ? WHERE id = ? AND user_id = ?',
+      [completed ? 1 : 0, req.params.id, req.user.id]
+    );
+    
+    res.json({ message: 'Reminder status updated successfully' });
+  } catch (error) {
+    console.error('Error updating reminder status:', error);
+    res.status(500).json({ error: 'Failed to update reminder status' });
+  }
+});
+
+app.delete('/api/reminders/:id', authenticateToken, async (req, res) => {
+  try {
+    // Verify the reminder belongs to the user
+    const [reminderRows] = await pool.query('SELECT * FROM reminders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (reminderRows.length === 0) {
+      return res.status(404).json({ error: 'Reminder not found or not authorized' });
+    }
+    
+    await pool.query('DELETE FROM reminders WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    
+    res.json({ message: 'Reminder deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting reminder:', error);
+    res.status(500).json({ error: 'Failed to delete reminder' });
+  }
+});
+
+// Scheduled Payments endpoints
+app.get('/api/scheduled-payments', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT sp.*, c.name as category_name, w.name as wallet_name
+      FROM scheduled_payments sp
+      JOIN categories c ON sp.category_id = c.id
+      JOIN wallets w ON sp.wallet_id = w.id
+      WHERE sp.user_id = ?
+      ORDER BY sp.date ASC
+    `, [req.user.id]);
+    
+    const transformedRows = rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      amount: parseFloat(row.amount),
+      date: row.date.toISOString().split('T')[0],
+      walletId: row.wallet_id,
+      walletName: row.wallet_name,
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      recurring: row.recurring,
+      completed: !!row.completed
+    }));
+    
+    res.json(transformedRows);
+  } catch (error) {
+    console.error('Error fetching scheduled payments:', error);
+    res.status(500).json({ error: 'Failed to fetch scheduled payments' });
+  }
+});
+
+app.post('/api/scheduled-payments', authenticateToken, async (req, res) => {
+  try {
+    const { id, title, amount, date, walletId, categoryId, recurring, completed } = req.body;
+    
+    // Verify the wallet belongs to the user
+    const [walletRows] = await pool.query('SELECT * FROM wallets WHERE id = ? AND user_id = ?', [walletId, req.user.id]);
+    if (walletRows.length === 0) {
+      return res.status(404).json({ error: 'Wallet not found or not authorized' });
+    }
+    
+    await pool.query(
+      'INSERT INTO scheduled_payments (id, title, amount, date, wallet_id, category_id, recurring, completed, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, title, amount, date, walletId, categoryId, recurring, completed ? 1 : 0, req.user.id]
+    );
+    
+    res.status(201).json({ message: 'Scheduled payment created successfully' });
+  } catch (error) {
+    console.error('Error creating scheduled payment:', error);
+    res.status(500).json({ error: 'Failed to create scheduled payment' });
+  }
+});
+
+app.put('/api/scheduled-payments/:id', authenticateToken, async (req, res) => {
+  try {
+    const { title, amount, date, walletId, categoryId, recurring, completed } = req.body;
+    
+    // Verify the scheduled payment belongs to the user
+    const [paymentRows] = await pool.query('SELECT * FROM scheduled_payments WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (paymentRows.length === 0) {
+      return res.status(404).json({ error: 'Scheduled payment not found or not authorized' });
+    }
+    
+    await pool.query(
+      'UPDATE scheduled_payments SET title = ?, amount = ?, date = ?, wallet_id = ?, category_id = ?, recurring = ?, completed = ? WHERE id = ? AND user_id = ?',
+      [title, amount, date, walletId, categoryId, recurring, completed ? 1 : 0, req.params.id, req.user.id]
+    );
+    
+    res.json({ message: 'Scheduled payment updated successfully' });
+  } catch (error) {
+    console.error('Error updating scheduled payment:', error);
+    res.status(500).json({ error: 'Failed to update scheduled payment' });
+  }
+});
+
+app.patch('/api/scheduled-payments/:id/complete', authenticateToken, async (req, res) => {
+  try {
+    const { completed } = req.body;
+    
+    // Verify the scheduled payment belongs to the user
+    const [paymentRows] = await pool.query('SELECT * FROM scheduled_payments WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (paymentRows.length === 0) {
+      return res.status(404).json({ error: 'Scheduled payment not found or not authorized' });
+    }
+    
+    await pool.query(
+      'UPDATE scheduled_payments SET completed = ? WHERE id = ? AND user_id = ?',
+      [completed ? 1 : 0, req.params.id, req.user.id]
+    );
+    
+    res.json({ message: 'Scheduled payment status updated successfully' });
+  } catch (error) {
+    console.error('Error updating scheduled payment status:', error);
+    res.status(500).json({ error: 'Failed to update scheduled payment status' });
+  }
+});
+
+app.delete('/api/scheduled-payments/:id', authenticateToken, async (req, res) => {
+  try {
+    // Verify the scheduled payment belongs to the user
+    const [paymentRows] = await pool.query('SELECT * FROM scheduled_payments WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (paymentRows.length === 0) {
+      return res.status(404).json({ error: 'Scheduled payment not found or not authorized' });
+    }
+    
+    await pool.query('DELETE FROM scheduled_payments WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    
+    res.json({ message: 'Scheduled payment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting scheduled payment:', error);
+    res.status(500).json({ error: 'Failed to delete scheduled payment' });
   }
 });
 
