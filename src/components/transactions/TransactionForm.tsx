@@ -131,6 +131,7 @@ export function TransactionForm({ isEditing, onSave, editingTransaction, onCance
       description: values.description,
       amount: values.amount,
       date: values.date,
+      categoryId: values.category,
       category: values.category,
       type: values.type,
       walletId: values.walletId,

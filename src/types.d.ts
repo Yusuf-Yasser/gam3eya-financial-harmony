@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -25,6 +24,7 @@ export interface Transaction {
   categoryName?: string;
   walletId: string;
   walletName?: string;
+  receiptUrl?: string;
 }
 
 export interface Category {
