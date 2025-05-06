@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
-import { X } from "lucide-react";
+import { X, RotateCcw } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -45,6 +44,17 @@ interface AdvancedTransactionFiltersProps {
   maxAmount: number;
 }
 
+const SectionLabel = ({ label, onClear }: { label: string; onClear?: () => void }) => (
+  <div className="flex items-center justify-between">
+    <Label>{label}</Label>
+    {onClear && (
+      <Button variant="ghost" size="icon" onClick={onClear} className="h-6 w-6">
+        <RotateCcw className="h-3 w-3 text-muted-foreground" />
+      </Button>
+    )}
+  </div>
+);
+
 export function AdvancedTransactionFilters({ 
   filterOptions, 
   onFilterChange, 
@@ -53,7 +63,7 @@ export function AdvancedTransactionFilters({
   maxAmount 
 }: AdvancedTransactionFiltersProps) {
   const { t } = useLanguage();
-  const [localFilters, setLocalFilters] = useState<FilterOptions>(filterOptions);
+  const [localFilters, setLocalFilters] = useState<FilterOptions>(JSON.parse(JSON.stringify(filterOptions)));
   
   const handleDateRangeChange = (field: 'from' | 'to', value?: Date) => {
     setLocalFilters(prev => ({
@@ -101,36 +111,39 @@ export function AdvancedTransactionFilters({
     }));
   };
 
+  const resetDateRange = () => setLocalFilters(prev => ({ ...prev, dateRange: { from: undefined, to: undefined } }));
+  const resetCategories = () => setLocalFilters(prev => ({ ...prev, categories: [] }));
+  const resetTypes = () => setLocalFilters(prev => ({ ...prev, types: [] }));
+  const resetAmountRange = () => setLocalFilters(prev => ({ ...prev, amountRange: { min: 0, max: maxAmount } }));
+
   const handleApplyFilters = () => {
     onFilterChange(localFilters);
     onClose();
   };
 
-  const handleResetFilters = () => {
+  const handleResetAllFilters = () => {
     const resetFilters: FilterOptions = {
       dateRange: { from: undefined, to: undefined },
       categories: [],
       amountRange: { min: 0, max: maxAmount },
       types: []
     };
-    
     setLocalFilters(resetFilters);
-    onFilterChange(resetFilters);
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 max-h-[80vh] overflow-y-auto">
+      <div className="flex items-center justify-between sticky top-0 bg-background py-2 z-10 border-b -mx-4 px-4">
         <h3 className="text-lg font-medium">{t('filter_transactions')}</h3>
         <Button variant="ghost" size="sm" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6 pb-16">
         {/* Date Range */}
         <div className="space-y-2">
-          <Label>{t('date_range')}</Label>
+          <SectionLabel label={t('date_range')} onClear={resetDateRange} />
           <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
             <div className="flex-1">
               <Popover>
@@ -195,8 +208,8 @@ export function AdvancedTransactionFilters({
 
         {/* Categories */}
         <div className="space-y-2">
-          <Label>{t('categories')}</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <SectionLabel label={t('categories')} onClear={resetCategories} />
+          <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 border rounded-md">
             {categories.map((category) => (
               <div key={category} className="flex items-center space-x-2">
                 <Checkbox 
@@ -206,18 +219,19 @@ export function AdvancedTransactionFilters({
                 />
                 <label
                   htmlFor={`category-${category}`}
-                  className="text-sm cursor-pointer"
+                  className="text-sm cursor-pointer select-none"
                 >
                   {t(category)}
                 </label>
               </div>
             ))}
+            {categories.length === 0 && <p className="text-sm text-muted-foreground p-2">{t('no_categories_available')}</p>}
           </div>
         </div>
 
         {/* Transaction Types */}
         <div className="space-y-2">
-          <Label>{t('transaction_type')}</Label>
+          <SectionLabel label={t('transaction_type')} onClear={resetTypes} />
           <div className="flex space-x-4">
             <div className="flex items-center space-x-2">
               <Checkbox 
@@ -227,7 +241,7 @@ export function AdvancedTransactionFilters({
               />
               <label
                 htmlFor="type-income"
-                className="text-sm cursor-pointer"
+                className="text-sm cursor-pointer select-none"
               >
                 {t('income')}
               </label>
@@ -240,7 +254,7 @@ export function AdvancedTransactionFilters({
               />
               <label
                 htmlFor="type-expense"
-                className="text-sm cursor-pointer"
+                className="text-sm cursor-pointer select-none"
               >
                 {t('expenses')}
               </label>
@@ -250,37 +264,43 @@ export function AdvancedTransactionFilters({
 
         {/* Amount Range */}
         <div className="space-y-2">
-          <Label>{t('amount_range')}</Label>
-          <div className="pt-6 px-2">
-            <Slider
-              defaultValue={[localFilters.amountRange.min, localFilters.amountRange.max]}
-              min={0}
-              max={maxAmount}
-              step={100}
-              onValueChange={handleAmountRangeChange}
-              className="mb-6"
+          <SectionLabel label={t('amount_range')} onClear={resetAmountRange} />
+          <div className="flex items-center space-x-2">
+            <Input 
+              type="number" 
+              value={localFilters.amountRange.min} 
+              onChange={e => {
+                const newMin = parseInt(e.target.value, 10);
+                if (!isNaN(newMin)) {
+                  handleAmountRangeChange([newMin, localFilters.amountRange.max]);
+                }
+              }} 
+              className="w-1/2"
+              placeholder={t('min_amount')}
+              min="0"
             />
-            <div className="flex justify-between items-center">
-              <div>
-                <span className="text-xs text-muted-foreground">EGP </span>
-                <span className="font-medium">{localFilters.amountRange.min}</span>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">EGP </span>
-                <span className="font-medium">{localFilters.amountRange.max}</span>
-              </div>
-            </div>
+            <Input 
+              type="number" 
+              value={localFilters.amountRange.max === Infinity ? '' : localFilters.amountRange.max} 
+              onChange={e => {
+                const newMax = parseInt(e.target.value, 10);
+                if (!isNaN(newMax)) {
+                  handleAmountRangeChange([localFilters.amountRange.min, newMax]);
+                } else if (e.target.value === '') { // Allow clearing max to revert to default (maxAmount)
+                  handleAmountRangeChange([localFilters.amountRange.min, maxAmount]);
+                }
+              }} 
+              className="w-1/2"
+              placeholder={t('max_amount')}
+              min="0"
+            />
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={handleResetFilters}>
-          {t('reset')}
-        </Button>
-        <Button onClick={handleApplyFilters}>
-          {t('apply_filters')}
-        </Button>
+      <div className="flex items-center justify-end space-x-2 sticky bottom-0 bg-background py-3 border-t -mx-4 px-4">
+        <Button variant="outline" onClick={handleResetAllFilters}>{t('reset_all_filters')}</Button>
+        <Button onClick={handleApplyFilters}>{t('apply_filters')}</Button>
       </div>
     </div>
   );

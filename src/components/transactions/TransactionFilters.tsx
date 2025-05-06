@@ -44,7 +44,7 @@ const sortableKeys: { value: SortKey; labelKey: string }[] = [
 
 export function TransactionFilters({ 
   searchTerm, 
-  onSearchChange, 
+  onSearchChange,
   filterOptions,
   onFilterChange,
   categories,
@@ -116,6 +116,7 @@ export function TransactionFilters({
                 amountRange: { min: 0, max: maxAmount },
                 types: []
               });
+              onSearchChange("");
             }}
           >
             <X className={`${language === 'ar' ? 'ml-1' : 'mr-1'} h-4 w-4`} />
@@ -165,6 +166,7 @@ export function TransactionFilters({
                 amountRange: { min: 0, max: maxAmount },
                 types: []
               });
+              onSearchChange("");
             }}
           >
             <X className={`${language === 'ar' ? 'ml-1' : 'mr-1'} h-4 w-4`} />
