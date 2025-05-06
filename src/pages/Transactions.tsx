@@ -38,6 +38,15 @@ import { TransactionDetails } from "@/components/transactions/TransactionDetails
 import { useLocation, useSearchParams } from "react-router-dom";
 import { transactionsApi, walletsApi } from "@/services/api";
 
+// Define SortDirection and SortKey types
+export type SortDirection = 'asc' | 'desc';
+export type SortKey = 'date' | 'description' | 'categoryName' | 'amount' | 'type'; // Added 'type'
+
+interface SortConfig {
+  key: SortKey;
+  direction: SortDirection;
+}
+
 const getMaxAmount = (transactions: Transaction[]): number => {
   const maxAmount = Math.max(...transactions.map(t => t.amount), 0);
   return Math.ceil(maxAmount / 1000) * 1000 || 10000;
@@ -61,6 +70,7 @@ const Transactions = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'desc' });
   
   useEffect(() => {
     fetchTransactions();
@@ -253,7 +263,46 @@ const Transactions = () => {
   };
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(transaction => {
+    let sortableTransactions = [...transactions];
+
+    // Apply sorting
+    if (sortConfig.key) {
+      sortableTransactions.sort((a, b) => {
+        let valA = a[sortConfig.key];
+        let valB = b[sortConfig.key];
+
+        // Handle special cases like categoryName which might not be a direct key
+        if (sortConfig.key === 'categoryName') {
+          valA = t(a.categoryName || a.category);
+          valB = t(b.categoryName || b.category);
+        }
+        
+        // Type guard for date sorting
+        if (sortConfig.key === 'date' && typeof valA === 'string' && typeof valB === 'string') {
+          const dateA = new Date(valA).getTime();
+          const dateB = new Date(valB).getTime();
+          if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+
+        // Fallback for number or string comparison
+        if (valA === undefined || valA === null) valA = ''; // Handle undefined or null for robust comparison
+        if (valB === undefined || valB === null) valB = '';
+
+
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
+        }
+        
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return sortableTransactions.filter(transaction => {
       const matchesSearch = 
         searchTerm === "" || 
         transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -289,7 +338,7 @@ const Transactions = () => {
 
       return matchesAmount;
     });
-  }, [transactions, searchTerm, filterOptions, t]);
+  }, [transactions, searchTerm, filterOptions, t, sortConfig]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -301,6 +350,20 @@ const Transactions = () => {
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilterOptions(newFilters);
     setCurrentPage(1);
+  };
+
+  const handleSortChange = (key: SortKey, direction?: SortDirection) => {
+    setSortConfig(prevConfig => {
+      if (direction) {
+        return { key, direction };
+      }
+      // If only key is provided, toggle direction if same key, else default to 'asc'
+      if (prevConfig.key === key) {
+        return { key, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' }; // Default to ascending for new key
+    });
+    setCurrentPage(1); // Reset to first page on sort change
   };
 
   return (
@@ -346,6 +409,8 @@ const Transactions = () => {
             categories={categories}
             maxAmount={maxAmount}
             hasActiveFilters={hasActiveFilters}
+            sortConfig={sortConfig}
+            onSortChange={handleSortChange}
           />
         </CardHeader>
         <CardContent>
