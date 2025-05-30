@@ -12,7 +12,7 @@ export function LanguageToggle() {
       onClick={toggleLanguage}
       className="px-2 h-8"
     >
-      {language === 'en' ? 'العربية' : 'English'}
+      {language === 'en' ? t('arabic') : t('english')}
     </Button>
   );
 }

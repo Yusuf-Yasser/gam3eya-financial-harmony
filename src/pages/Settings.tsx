@@ -123,16 +123,14 @@ const Settings = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">
-                  {language === 'en' ? 'English' : 'العربية'}
+              <div>                <p className="font-medium">
+                  {language === 'en' ? t('english') : t('arabic')}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {t('current_language')}
                 </p>
-              </div>
-              <Button onClick={toggleLanguage} variant="outline">
-                {language === 'en' ? 'تغيير إلى العربية' : 'Switch to English'}
+              </div>              <Button onClick={toggleLanguage} variant="outline">
+                {language === 'en' ? t('switch_to_arabic') : t('switch_to_english')}
               </Button>
             </div>
           </CardContent>

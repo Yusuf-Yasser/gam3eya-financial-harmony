@@ -129,9 +129,111 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     yearly_distribution: "Yearly expense distribution",
     income_expense_comparison_description: "Compare your income and expenses over time",
     cash_flow_description: "Track your net cash flow and running balance",
-    expense_distribution_description: "See where your money is going",
-    wallet_transaction_history: "Recent transaction history",
+    expense_distribution_description: "See where your money is going",    wallet_transaction_history: "Recent transaction history",
     uncategorized: "Uncategorized",
+    
+    // Missing filter/search translations
+    search_transactions: 'Search transactions',
+    filter: 'Filter',
+    clear_filters: 'Clear filters',
+    sort: 'Sort',
+    date_from: 'Date from',
+    date_to: 'Date to',
+    categories: 'Categories',
+    types: 'Types',
+    search: 'Search',
+    max: 'Max',
+    
+    // Missing settings translations
+    language_settings: 'Language Settings',
+    current_language: 'Current language',
+    notifications: 'Notifications',
+    manage_notifications: 'Manage your notification preferences',
+    
+    // Missing wallet translations
+    add_wallet: 'Add Wallet',
+    
+    // Missing general UI translations
+    no_results_found: 'No results found',
+    loading: 'Loading...',
+    save: 'Save',
+    close: 'Close',
+      // Language toggle translations
+    arabic: 'العربية',
+    english: 'English',
+      // Sorting related translations
+    sort_by: 'Sort by',
+    order: 'Order',
+    select_sort_key: 'Select sort key',
+    select_sort_direction: 'Select sort direction',
+    ascending: 'Ascending',
+    descending: 'Descending',
+    
+    // Missing Settings translations
+    phone: 'Phone',
+    profile_settings: 'Profile Settings',
+    switch_to_arabic: 'Switch to Arabic',
+    switch_to_english: 'Switch to English',
+    email_notifications: 'Email notifications',
+    receive_email_updates: 'Receive email updates about your account',
+    push_notifications: 'Push notifications',
+    receive_push_notifications: 'Receive push notifications on your device',
+    security: 'Security',
+    change_password: 'Change Password',    manage_connected_accounts: 'Manage Connected Accounts',
+    edit_profile: 'Edit Profile',
+    save_changes: 'Save Changes',
+    
+    // Missing Wallet translations
+    my_wallets: 'My Wallets',
+    manage_your_wallets: 'Manage your wallets and track balances',
+    no_wallets_yet: 'No wallets yet',
+    add_new_wallet: 'Add New Wallet',
+    enter_wallet_details: 'Enter details for your new wallet',
+    wallet_name: 'Wallet Name',
+    wallet_type: 'Wallet Type',
+    select_wallet_type: 'Select wallet type',
+    initial_balance: 'Initial Balance',
+    wallet_color: 'Wallet Color',
+    account_number: 'Account Number',
+    last_updated: 'Last Updated',
+    no_wallets: 'No wallets available',
+    wallet_added_successfully: 'Wallet added successfully',
+    failed_to_add_wallet: 'Failed to add wallet',
+    wallet_deleted_successfully: 'Wallet deleted successfully',
+    failed_to_delete_wallet: 'Failed to delete wallet',
+    validation_error: 'Validation Error',
+    please_fill_all_required_fields: 'Please fill all required fields',
+    failed_to_load_wallets: 'Failed to load wallets',
+    
+    // Wallet types
+    bank: 'Bank',
+    savings: 'Savings',
+    custom: 'Custom',
+    
+    // Missing payment/transaction related
+    current_balance: 'Current Balance',
+    make_monthly_contribution: 'Make Monthly Contribution',
+    receive_gam3eya_payout: 'Receive Gam3eya Payout',
+    select_wallet_to_pay_from: 'Select wallet to pay from',
+    select_wallet_to_receive_into: 'Select wallet to receive into',
+    no_wallets_with_sufficient_balance: 'No wallets with sufficient balance',
+    no_wallets_available: 'No wallets available',
+    processing: 'Processing...',
+    confirm: 'Confirm',
+    monthly_contribution_for_cycle: 'Monthly contribution for cycle {{cycle}}',
+    receiving_payout_for_gam3eya: 'Receiving payout for gam3eya',
+    after_payment_wallet_balance_will_be: 'After payment, wallet balance will be {{balance}}',
+    after_payout_wallet_balance_will_be: 'After payout, wallet balance will be {{balance}}',
+    payment_processed_successfully: 'Payment processed successfully',
+    payout_processed_successfully: 'Payout processed successfully',
+    payment_processing_failed: 'Payment processing failed',
+    please_select_wallet: 'Please select a wallet',
+    pay: 'Pay',
+    receive: 'Receive',
+    next_payment: 'Next payment',    last_processed: 'Last processed',
+    
+    // Loading states
+    loading_wallets: 'Loading wallets',
   };
 
   const arTranslations = {
@@ -247,9 +349,111 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     yearly_distribution: "توزيع المصروفات السنوية",
     income_expense_comparison_description: "قارن دخلك ومصروفاتك على مر الزمن",
     cash_flow_description: "تتبع صافي التدفق النقدي والرصيد الجاري",
-    expense_distribution_description: "معرفة أين تذهب أموالك",
-    wallet_transaction_history: "سجل المعاملات الأخيرة",
+    expense_distribution_description: "معرفة أين تذهب أموالك",    wallet_transaction_history: "سجل المعاملات الأخيرة",
     uncategorized: "غير مصنف",
+    
+    // Arabic filter/search translations
+    search_transactions: 'البحث في المعاملات',
+    filter: 'تصفية',
+    clear_filters: 'مسح المرشحات',
+    sort: 'ترتيب',
+    date_from: 'من تاريخ',
+    date_to: 'إلى تاريخ',
+    categories: 'الفئات',
+    types: 'الأنواع',
+    search: 'بحث',
+    max: 'الحد الأقصى',
+    
+    // Arabic settings translations
+    language_settings: 'إعدادات اللغة',
+    current_language: 'اللغة الحالية',
+    notifications: 'الإشعارات',
+    manage_notifications: 'إدارة تفضيلات الإشعارات',
+    
+    // Arabic wallet translations
+    add_wallet: 'إضافة محفظة',
+    
+    // Arabic general UI translations
+    no_results_found: 'لا توجد نتائج',
+    loading: 'جاري التحميل...',
+    save: 'حفظ',
+    close: 'إغلاق',
+      // Language toggle translations
+    arabic: 'العربية',
+    english: 'English',
+      // Arabic sorting related translations
+    sort_by: 'ترتيب حسب',
+    order: 'الترتيب',
+    select_sort_key: 'اختر مفتاح الترتيب',
+    select_sort_direction: 'اختر اتجاه الترتيب',
+    ascending: 'تصاعدي',
+    descending: 'تنازلي',
+    
+    // Missing Arabic Settings translations
+    phone: 'الهاتف',
+    profile_settings: 'إعدادات الملف الشخصي',
+    switch_to_arabic: 'تغيير إلى العربية',
+    switch_to_english: 'تغيير إلى الإنجليزية',
+    email_notifications: 'إشعارات البريد الإلكتروني',
+    receive_email_updates: 'تلقي تحديثات البريد الإلكتروني حول حسابك',
+    push_notifications: 'الإشعارات الفورية',
+    receive_push_notifications: 'تلقي الإشعارات الفورية على جهازك',
+    security: 'الأمان',
+    change_password: 'تغيير كلمة المرور',    manage_connected_accounts: 'إدارة الحسابات المتصلة',
+    edit_profile: 'تعديل الملف الشخصي',
+    save_changes: 'حفظ التغييرات',
+    
+    // Missing Arabic Wallet translations
+    my_wallets: 'محافظي',
+    manage_your_wallets: 'إدارة محافظك وتتبع الأرصدة',
+    no_wallets_yet: 'لا توجد محافظ بعد',
+    add_new_wallet: 'إضافة محفظة جديدة',
+    enter_wallet_details: 'أدخل تفاصيل محفظتك الجديدة',
+    wallet_name: 'اسم المحفظة',
+    wallet_type: 'نوع المحفظة',
+    select_wallet_type: 'اختر نوع المحفظة',
+    initial_balance: 'الرصيد الأولي',
+    wallet_color: 'لون المحفظة',
+    account_number: 'رقم الحساب',
+    last_updated: 'آخر تحديث',
+    no_wallets: 'لا توجد محافظ متاحة',
+    wallet_added_successfully: 'تمت إضافة المحفظة بنجاح',
+    failed_to_add_wallet: 'فشل في إضافة المحفظة',
+    wallet_deleted_successfully: 'تم حذف المحفظة بنجاح',
+    failed_to_delete_wallet: 'فشل في حذف المحفظة',
+    validation_error: 'خطأ في التحقق',
+    please_fill_all_required_fields: 'يرجى ملء جميع الحقول المطلوبة',
+    failed_to_load_wallets: 'فشل في تحميل المحافظ',
+    
+    // Arabic Wallet types
+    bank: 'بنك',
+    savings: 'مدخرات',
+    custom: 'مخصص',
+    
+    // Missing Arabic payment/transaction related
+    current_balance: 'الرصيد الحالي',
+    make_monthly_contribution: 'قم بالمساهمة الشهرية',
+    receive_gam3eya_payout: 'استلم دفعة الجمعية',
+    select_wallet_to_pay_from: 'اختر المحفظة للدفع منها',
+    select_wallet_to_receive_into: 'اختر المحفظة لاستلام المبلغ',
+    no_wallets_with_sufficient_balance: 'لا توجد محافظ برصيد كافٍ',
+    no_wallets_available: 'لا توجد محافظ متاحة',
+    processing: 'جاري المعالجة...',
+    confirm: 'تأكيد',
+    monthly_contribution_for_cycle: 'المساهمة الشهرية للدورة {{cycle}}',
+    receiving_payout_for_gam3eya: 'استلام دفعة من الجمعية',
+    after_payment_wallet_balance_will_be: 'بعد الدفع، سيكون رصيد المحفظة {{balance}}',
+    after_payout_wallet_balance_will_be: 'بعد الاستلام، سيكون رصيد المحفظة {{balance}}',
+    payment_processed_successfully: 'تمت معالجة الدفعة بنجاح',
+    payout_processed_successfully: 'تمت معالجة الاستلام بنجاح',
+    payment_processing_failed: 'فشل في معالجة الدفعة',
+    please_select_wallet: 'يرجى اختيار محفظة',
+    pay: 'دفع',
+    receive: 'استلام',
+    next_payment: 'الدفعة التالية',    last_processed: 'آخر معالجة',
+    
+    // Loading states Arabic
+    loading_wallets: 'جاري تحميل المحافظ',
   };
 
   const translations = language === 'ar' ? arTranslations : enTranslations;

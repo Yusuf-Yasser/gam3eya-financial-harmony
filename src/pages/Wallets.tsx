@@ -147,9 +147,8 @@ const Wallets = () => {
   };
 
   const totalBalance = walletList.reduce((sum, wallet) => sum + Number(wallet.balance), 0);
-
   if (loading) {
-    return <div className="p-8 text-center">Loading wallets...</div>;
+    return <div className="p-8 text-center">{t('loading_wallets')}...</div>;
   }
 
   return (
