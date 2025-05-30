@@ -4,6 +4,7 @@ interface LanguageContextType {
   language: string;
   t: (key: string) => string;
   setLanguage: (lang: string) => void;
+  toggleLanguage: () => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -121,11 +122,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     monthly: "Monthly",
     yearly: "Yearly",
     monthly_comparison: "Monthly income vs expenses",
-    yearly_comparison: "Yearly income vs expenses",
-    monthly_cash_flow: "Monthly cash flow analysis",
+    yearly_comparison: "Yearly income vs expenses",    monthly_cash_flow: "Monthly cash flow analysis",
     yearly_cash_flow: "Yearly cash flow analysis",
     cash_flow: "Cash Flow",
-    balance: "Balance",
     monthly_distribution: "Monthly expense distribution",
     yearly_distribution: "Yearly expense distribution",
     income_expense_comparison_description: "Compare your income and expenses over time",
@@ -241,11 +240,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     monthly: "شهري",
     yearly: "سنوي",
     monthly_comparison: "الدخل مقابل المصروفات الشهرية",
-    yearly_comparison: "الدخل مقابل المصروفات السنوية",
-    monthly_cash_flow: "تحليل التدفق النقدي الشهري",
+    yearly_comparison: "الدخل مقابل المصروفات السنوية",    monthly_cash_flow: "تحليل التدفق النقدي الشهري",
     yearly_cash_flow: "تحليل التدفق النقدي السنوي",
     cash_flow: "التدفق النقدي",
-    balance: "الرصيد",
     monthly_distribution: "توزيع المصروفات الشهرية",
     yearly_distribution: "توزيع المصروفات السنوية",
     income_expense_comparison_description: "قارن دخلك ومصروفاتك على مر الزمن",
@@ -256,13 +253,16 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const translations = language === 'ar' ? arTranslations : enTranslations;
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'ar' : 'en');
+  };
 
   const t = (key: string) => {
     return translations[key] || key;
   };
 
   return (
-    <LanguageContext.Provider value={{ language, t, setLanguage }}>
+    <LanguageContext.Provider value={{ language, t, setLanguage, toggleLanguage }}>
       {children}
     </LanguageContext.Provider>
   );
