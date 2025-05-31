@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { User, LoginCredentials, RegisterCredentials } from '@/types';
+import { User, LoginCredentials, RegisterCredentials, UpdateProfileData, ChangePasswordData } from '@/types';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -35,6 +35,15 @@ const removeCurrentUser = () => {
   localStorage.removeItem('current_user');
 };
 
+// Add auth token to all requests
+axios.interceptors.request.use(config => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const authApi = {
   register: async (credentials: RegisterCredentials): Promise<User> => {
     const response = await axios.post(`${API_URL}/auth/register`, credentials);
@@ -59,6 +68,20 @@ export const authApi = {
   
   isAuthenticated: (): boolean => {
     return !!getToken() && !!getCurrentUser();
+  },
+  
+  updateProfile: async (data: UpdateProfileData): Promise<User> => {
+    const response = await axios.put(`${API_URL}/users/profile`, data);
+    const { user } = response.data;
+    
+    // Update the stored user data
+    setCurrentUser(user);
+    
+    return user;
+  },
+  
+  changePassword: async (data: ChangePasswordData): Promise<void> => {
+    await axios.put(`${API_URL}/users/password`, data);
   }
 };
 

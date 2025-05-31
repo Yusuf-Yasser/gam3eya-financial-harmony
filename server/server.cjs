@@ -1043,6 +1043,82 @@ app.delete('/api/scheduled-payments/:id', authenticateToken, async (req, res) =>
   }
 });
 
+// User profile endpoints
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const { username, email } = req.body;
+    const userId = req.user.id;
+    
+    // Check if email is already taken by another user
+    if (email) {
+      const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ? AND id != ?', [email, userId]);
+      if (existingUsers.length > 0) {
+        return res.status(400).json({ error: 'Email is already in use' });
+      }
+    }
+    
+    // Update the user profile
+    await pool.query(
+      'UPDATE users SET username = ?, email = ? WHERE id = ?',
+      [username, email, userId]
+    );
+    
+    // Get the updated user data
+    const [updatedUsers] = await pool.query('SELECT id, username, email FROM users WHERE id = ?', [userId]);
+    
+    if (updatedUsers.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const updatedUser = updatedUsers[0];
+    
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+app.put('/api/users/password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+    
+    // Get the user's current password hash
+    const [users] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = users[0];
+    
+    // Verify the current password
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // Update the password
+    await pool.query(
+      'UPDATE users SET password_hash = ? WHERE id = ?',
+      [hashedPassword, userId]
+    );
+    
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

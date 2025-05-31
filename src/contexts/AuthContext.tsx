@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '@/types';
+import { User, UpdateProfileData, ChangePasswordData } from '@/types';
 import authApi, { getCurrentUser } from '@/services/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
+  updateProfile: (data: UpdateProfileData) => Promise<void>;
+  changePassword: (data: ChangePasswordData) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -76,6 +78,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateProfile = async (data: UpdateProfileData) => {
+    try {
+      setLoading(true);
+      const updatedUser = await authApi.updateProfile(data);
+      setUser(updatedUser);
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const changePassword = async (data: ChangePasswordData) => {
+    try {
+      setLoading(true);
+      await authApi.changePassword(data);
+      toast({
+        title: "Success",
+        description: "Password changed successfully",
+      });
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to change password. Please check your current password and try again.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     authApi.logout();
     setUser(null);
@@ -93,6 +138,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         login,
         register,
+        updateProfile,
+        changePassword,
         logout,
         loading
       }}

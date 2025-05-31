@@ -15,28 +15,34 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { UpdateProfileData } from "@/types";
+import ChangePasswordDialog from "@/components/dialogs/ChangePasswordDialog";
 
 const Settings = () => {
   const { t, language, toggleLanguage } = useLanguage();
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<UpdateProfileData>({
     defaultValues: {
       username: user?.username || '',
       email: user?.email || ''
     }
   });
 
-  const onSubmit = (data) => {
-    // In a real implementation, this would call an API to update the user profile
-    // with only the supported fields (username and email) in the database
-    toast({
-      title: "Profile updated",
-      description: "Your username and email have been updated successfully",
-    });
-    setIsEditing(false);
+  const onSubmit = async (data: UpdateProfileData) => {
+    try {
+      setIsSubmitting(true);
+      await updateProfile(data);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleLogout = () => {
@@ -63,7 +69,8 @@ const Settings = () => {
                     <label className="text-sm font-medium">{t('username')}</label>
                     <Input 
                       placeholder="Username" 
-                      {...register("username", { required: "Username is required" })}
+                      disabled={isSubmitting}
+                      {...register("username", { required: t('username_required') as string })}
                     />
                     {errors.username && <p className="text-destructive text-sm mt-1">{errors.username.message}</p>}
                   </div>
@@ -72,15 +79,34 @@ const Settings = () => {
                     <Input 
                       placeholder="Email" 
                       type="email" 
-                      {...register("email", { required: "Email is required" })}
+                      disabled={isSubmitting}
+                      {...register("email", { 
+                        required: t('email_required') as string, 
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: t('invalid_email') as string
+                        }
+                      })}
                     />
                     {errors.email && <p className="text-destructive text-sm mt-1">{errors.email.message}</p>}
                   </div>
-
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit">{t('save_changes')}</Button>
-                  <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? t('saving') : t('save_changes')}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      reset({
+                        username: user?.username || '',
+                        email: user?.email || ''
+                      });
+                      setIsEditing(false);
+                    }}
+                  >
                     {t('cancel')}
                   </Button>
                 </div>
@@ -141,7 +167,11 @@ const Settings = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                onClick={() => setIsChangePasswordOpen(true)}
+              >
                 <Lock className="mr-2 h-4 w-4" />
                 {t('change_password')}
               </Button>
@@ -157,6 +187,10 @@ const Settings = () => {
           </CardContent>
         </Card>
       </div>
+      <ChangePasswordDialog 
+        open={isChangePasswordOpen} 
+        onOpenChange={setIsChangePasswordOpen} 
+      />
     </div>
   );
 };
