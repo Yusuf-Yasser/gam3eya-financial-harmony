@@ -234,6 +234,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     
     // Loading states
     loading_wallets: 'Loading wallets',
+    
+    // Settings page
+    language_preference_client_side: 'Language preference is stored locally and not tied to your account'
   };
 
   const arTranslations = {
@@ -390,6 +393,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     descending: 'تنازلي',
     
     // Missing Arabic Settings translations
+    language_preference_client_side: 'يتم تخزين تفضيل اللغة محليًا وليس مرتبطًا بحسابك',
     phone: 'الهاتف',
     profile_settings: 'إعدادات الملف الشخصي',
     switch_to_arabic: 'تغيير إلى العربية',

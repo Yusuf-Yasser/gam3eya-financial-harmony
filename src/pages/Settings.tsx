@@ -6,17 +6,13 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { 
-  Bell, 
   Globe, 
   User,
   Mail,
-  Phone,
   Lock,
   Shield,
-  CreditCard,
   LogOut
 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,16 +25,16 @@ const Settings = () => {
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       username: user?.username || '',
-      email: user?.email || '',
-      phone: ''
+      email: user?.email || ''
     }
   });
 
   const onSubmit = (data) => {
-    // In a real app, you would update the user profile here
+    // In a real implementation, this would call an API to update the user profile
+    // with only the supported fields (username and email) in the database
     toast({
       title: "Profile updated",
-      description: "Your profile has been updated successfully",
+      description: "Your username and email have been updated successfully",
     });
     setIsEditing(false);
   };
@@ -80,14 +76,7 @@ const Settings = () => {
                     />
                     {errors.email && <p className="text-destructive text-sm mt-1">{errors.email.message}</p>}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('phone')}</label>
-                    <Input 
-                      placeholder="+20 123 456 7890" 
-                      type="tel" 
-                      {...register("phone")}
-                    />
-                  </div>
+
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit">{t('save_changes')}</Button>
@@ -120,51 +109,28 @@ const Settings = () => {
               <Globe className="h-5 w-5" />
               {t('language_settings')}
             </CardTitle>
+            <CardDescription>
+              {t('language_preference_client_side')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div>                <p className="font-medium">
+              <div>
+                <p className="font-medium">
                   {language === 'en' ? t('english') : t('arabic')}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {t('current_language')}
                 </p>
-              </div>              <Button onClick={toggleLanguage} variant="outline">
+              </div>
+              <Button onClick={toggleLanguage} variant="outline">
                 {language === 'en' ? t('switch_to_arabic') : t('switch_to_english')}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              {t('notifications')}
-            </CardTitle>
-            <CardDescription>{t('manage_notifications')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="font-medium">{t('email_notifications')}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t('receive_email_updates')}
-                </p>
-              </div>
-              <Switch />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="font-medium">{t('push_notifications')}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t('receive_push_notifications')}
-                </p>
-              </div>
-              <Switch />
-            </div>
-          </CardContent>
-        </Card>
+
 
         <Card>
           <CardHeader>
@@ -178,10 +144,6 @@ const Settings = () => {
               <Button variant="outline" className="w-full justify-start">
                 <Lock className="mr-2 h-4 w-4" />
                 {t('change_password')}
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <CreditCard className="mr-2 h-4 w-4" />
-                {t('manage_connected_accounts')}
               </Button>
               <Button 
                 variant="outline" 
