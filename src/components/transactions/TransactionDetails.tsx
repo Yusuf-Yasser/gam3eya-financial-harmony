@@ -62,11 +62,8 @@ export function TransactionDetails({
     <Dialog open={!!transaction} onOpenChange={() => onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>{t('transaction_details')}</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8 p-0" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+          <DialogTitle>
+            {t('transaction_details')}
           </DialogTitle>
         </DialogHeader>
         {loading ? (

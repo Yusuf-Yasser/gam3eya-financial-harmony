@@ -67,6 +67,15 @@ export function AdvancedTransactionFilters({
   const { t } = useLanguage();
   const [localFilters, setLocalFilters] = useState<FilterOptions>(JSON.parse(JSON.stringify(filterOptions)));
   
+  // Add a title div at the top of the component
+  useEffect(() => {
+    // Find the sheet close button and add margin to avoid overlap with our title
+    const closeButton = document.querySelector('.sheet-content .fixed button');
+    if (closeButton) {
+      (closeButton as HTMLElement).style.marginTop = '8px';
+    }
+  }, []);
+  
   // State for storing full category objects
   const [categoryObjects, setCategoryObjects] = useState<Category[]>([]);
   
@@ -171,15 +180,11 @@ export function AdvancedTransactionFilters({
   };
 
   return (
-    <div className="space-y-6 p-4 max-h-[80vh] overflow-y-auto">
-      <div className="flex items-center justify-between sticky top-0 bg-background py-2 z-10 border-b -mx-4 px-4">
-        <h3 className="text-lg font-medium">{t('filter_transactions')}</h3>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="space-y-6 pb-16">
+    <div className="flex flex-col h-full -mx-4 px-4 py-4 gap-6">
+      <h2 className="text-xl font-semibold">{t('advanced_filters')}</h2>
+      <div className="border-b pb-2 mb-4"></div>
+      
+      <div className="space-y-6 pb-16 max-h-[80vh] overflow-y-auto">
         {/* Date Range */}
         <div className="space-y-2">
           <SectionLabel label={t('date_range')} onClear={resetDateRange} />
