@@ -104,11 +104,11 @@ export function TransactionFilters({
           </SheetContent>
         </Sheet>
         
-        {hasActiveFilters && !isMobile && (
+        {hasActiveFilters && (
           <Button 
             variant="ghost" 
             size="sm" 
-            className="items-center gap-1"
+            className="items-center gap-1 w-auto"
             onClick={() => {
               onFilterChange({
                 dateRange: { from: undefined, to: undefined },
@@ -154,25 +154,7 @@ export function TransactionFilters({
             </SelectContent>
           </Select>
         </div>
-         {hasActiveFilters && isMobile && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full items-center gap-1 mt-2 sm:mt-0"
-            onClick={() => {
-              onFilterChange({
-                dateRange: { from: undefined, to: undefined },
-                categories: [],
-                amountRange: { min: 0, max: maxAmount },
-                types: []
-              });
-              onSearchChange("");
-            }}
-          >
-            <X className={`${language === 'ar' ? 'ml-1' : 'mr-1'} h-4 w-4`} />
-            {t('clear_filters')}
-          </Button>
-        )}
+        {/* Clear filters button moved to the main filters section */}
       </div>
     </div>
   );

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -22,6 +22,8 @@ import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Category } from "@/types";
+import { categoriesApi } from "@/services/api";
 
 export interface FilterOptions {
   dateRange: {
@@ -65,6 +67,32 @@ export function AdvancedTransactionFilters({
   const { t } = useLanguage();
   const [localFilters, setLocalFilters] = useState<FilterOptions>(JSON.parse(JSON.stringify(filterOptions)));
   
+  // State for storing full category objects
+  const [categoryObjects, setCategoryObjects] = useState<Category[]>([]);
+  
+  // Fetch all categories with their types
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const fetchedCategories = await categoriesApi.getAll();
+        setCategoryObjects(fetchedCategories);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
+  // Separate categories by type
+  const incomeCategories = useMemo(() => 
+    categoryObjects.filter(cat => cat.type === 'income' || cat.type === 'both')
+  , [categoryObjects]);
+  
+  const expenseCategories = useMemo(() => 
+    categoryObjects.filter(cat => cat.type === 'expense' || cat.type === 'both')
+  , [categoryObjects]);
+  
   const handleDateRangeChange = (field: 'from' | 'to', value?: Date) => {
     setLocalFilters(prev => ({
       ...prev,
@@ -75,17 +103,28 @@ export function AdvancedTransactionFilters({
     }));
   };
 
-  const handleCategoryToggle = (category: string) => {
+  const handleCategoryChange = (category: string) => {
+    if (!category) return;
+    
     setLocalFilters(prev => {
-      const updatedCategories = prev.categories.includes(category)
-        ? prev.categories.filter(c => c !== category)
-        : [...prev.categories, category];
+      // If category is already selected, do nothing
+      if (prev.categories.includes(category)) {
+        return prev;
+      }
       
+      // Add the new category
       return {
         ...prev,
-        categories: updatedCategories
+        categories: [...prev.categories, category]
       };
     });
+  };
+  
+  const handleCategoryRemove = (category: string) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      categories: prev.categories.filter(c => c !== category)
+    }));
   };
 
   const handleTypeToggle = (type: string) => {
@@ -207,26 +246,71 @@ export function AdvancedTransactionFilters({
         </div>
 
         {/* Categories */}
-        <div className="space-y-2">
+        <div className="space-y-4">
           <SectionLabel label={t('categories')} onClear={resetCategories} />
-          <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 border rounded-md">
-            {categories.map((category) => (
-              <div key={category} className="flex items-center space-x-2">
-                <Checkbox 
-                  id={`category-${category}`}
-                  checked={localFilters.categories.includes(category)}
-                  onCheckedChange={() => handleCategoryToggle(category)}
-                />
-                <label
-                  htmlFor={`category-${category}`}
-                  className="text-sm cursor-pointer select-none"
-                >
-                  {t(category)}
-                </label>
-              </div>
-            ))}
-            {categories.length === 0 && <p className="text-sm text-muted-foreground p-2">{t('no_categories_available')}</p>}
+          
+          {/* Income Categories Dropdown */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">{t('income_categories')}</Label>
+            <Select
+              onValueChange={handleCategoryChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('select_income_category')} />
+              </SelectTrigger>
+              <SelectContent>
+                {incomeCategories.length > 0 ? (
+                  incomeCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {t(category.name)}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem disabled value="none">{t('no_income_categories')}</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
+          
+          {/* Expense Categories Dropdown */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">{t('expense_categories')}</Label>
+            <Select
+              onValueChange={handleCategoryChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('select_expense_category')} />
+              </SelectTrigger>
+              <SelectContent>
+                {expenseCategories.length > 0 ? (
+                  expenseCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {t(category.name)}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem disabled value="none">{t('no_expense_categories')}</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Selected Categories */}
+          {localFilters.categories.length > 0 && (
+            <div className="mt-2">
+              <Label className="text-sm">{t('selected_categories')}:</Label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {localFilters.categories.map(category => (
+                  <div key={category} className="bg-secondary text-secondary-foreground rounded-md px-2 py-1 text-xs flex items-center">
+                    {t(category)}
+                    <Button variant="ghost" size="icon" onClick={() => handleCategoryRemove(category)} className="h-4 w-4 ml-1">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Transaction Types */}
