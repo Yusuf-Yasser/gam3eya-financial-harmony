@@ -1,4 +1,3 @@
-
 -- Create the database
 CREATE DATABASE IF NOT EXISTS gam3eya_financial_harmony;
 USE gam3eya_financial_harmony;
@@ -21,6 +20,7 @@ CREATE TABLE IF NOT EXISTS categories (
     type ENUM('income', 'expense', 'both') DEFAULT 'both',
     user_id VARCHAR(50),
     is_custom BOOLEAN DEFAULT FALSE,
+    color VARCHAR(20),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
